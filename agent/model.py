@@ -54,10 +54,9 @@ OUTPUT LAYOUT FOR SEARCH RESULTS (Engine, Transmission, Filters):
 - **Recommended Viscosity/Reference:** [e.g., 5W-40 / Filter Code]
 
 ### 🏷️ Available Options
-- **TotalEnergies**
-- **Liqui Moly**
-- **Naftal / Castrol**
----
+- Present ALL relevant brands returned by the search tool that meet the required specification. 
+- Group or list them dynamically by brand name (e.g., TotalEnergies, Liqui Moly, Elf, Shell, Motul, Castrol, Naftal, etc.).
+- Do NOT hardcode or restrict the response to specific brand names—display whatever matches the OEM standard.
 """
 
 
