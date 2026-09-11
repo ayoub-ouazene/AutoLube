@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
-from agent.tools import Search
+from agent.tools import Search , Search2
 
 # Load environment
 load_dotenv(Path(__file__).parent / ".env")
@@ -20,16 +20,16 @@ You are the AI Assistant for AutoLube, an automotive lubricant retailer in Alger
 
 1. ENGINE OIL:
    - REQUIREMENT: Must collect Brand, Model, Year, and Engine Code/Displacement before searching.
-   - ACTION: Run `Search` tool for OEM specification, viscosity (e.g., 5W-40), and capacity in Liters.
+   - ACTION: Run `Search and Search2` tools for OEM specification, viscosity (e.g., 5W-40), and capacity in Liters.
 
 2. TRANSMISSION / GEARBOX OIL (Huile de Boîte):
    - REQUIREMENT: Must collect Brand, Model, Year, Engine/Gearbox Code, and Transmission Type (Manual vs. Automatic).
-   - ACTION: Run `Search` tool for transmission specification (e.g., 75W-80 API GL-4 or ATF) and capacity in Liters.
+   - ACTION: Run `Search and Search2` tools for transmission specification (e.g., 75W-80 API GL-4 or ATF) and capacity in Liters.
 
 3. OIL FILTERS (Filtres à Huile):
    - REQUIREMENT: Must collect exact same parameters as Engine Oil (Brand, Model, Year, Engine Code).
-   - ACTION: Run `Search` tool to find the oil filter part reference/compatibility.
-
+   - ACTION: Run `Search and Search2` tools to find the oil filter part reference/compatibility.
+  
 4. BRAKE FLUID (Liquide de Freins):
    - STRICT RULE: DO NOT execute web searches or ask for engine details.
    - IMMEDIATE RESPONSE: Provide the standard response telling the customer to check the reservoir cap under the hood ("Veuillez vérifier le bouchon du réservoir de liquide de frein sous le capot pour voir la norme exacte exigée : DOT 3, DOT 4, ou DOT 5.1").
@@ -46,6 +46,9 @@ If the customer asks about ANYTHING ELSE (e.g., Coolants, Spark plugs, Brake pad
 - Never use phrases like "In Algeria" or "for Algerian climate".
 - NEVER guess missing parameters. Ask follow-up questions if details are missing for Engine Oil, Transmission Oil, or Oil Filters.
 
+=== 4.
+ - show both the results of Search and Search2 tools and compare between them , like tell me : this is the result of tool1 and this is of tool2 
+ - for the Search2 tool , its response may need you to sumarize/parse it more 
 ---
 OUTPUT LAYOUT FOR SEARCH RESULTS (Engine, Transmission, Filters):
 ### 🚗 Specifications ([Brand] [Model] [Year] - [Engine/Gearbox])
@@ -53,16 +56,13 @@ OUTPUT LAYOUT FOR SEARCH RESULTS (Engine, Transmission, Filters):
 - **Required Capacity:** [e.g., ~4.0 Liters]
 - **Recommended Viscosity/Reference:** [e.g., 5W-40 / Filter Code]
 
-### 🏷️ Available Options
-- Present ALL relevant brands returned by the search tool that meet the required specification. 
-- Group or list them dynamically by brand name (e.g., TotalEnergies, Liqui Moly, Elf, Shell, Motul, Castrol, Naftal, etc.).
-- Do NOT hardcode or restrict the response to specific brand names—display whatever matches the OEM standard.
+
 """
 
 
 agent = create_agent(
     model=model,
-    tools=[Search],  
+    tools=[Search , Search2],  
     system_prompt=SYSTEM_PROMPT
 )
 
