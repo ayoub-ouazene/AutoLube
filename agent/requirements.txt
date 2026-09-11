@@ -1,0 +1,17 @@
+# Core LangChain & Agent Framework
+langchain
+langchain-core
+langgraph
+langgraph-checkpoint
+
+# Model Provider (Groq - since you're using ChatGroq)
+langchain-groq
+
+# Search Tool (Tavily)
+langchain-tavily
+
+# Environment Variables Management
+python-dotenv
+
+# Checkpointer for Conversation Memory
+langgraph-checkpoint-sqlite
