@@ -2,9 +2,14 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 from agent.tools import Search , Search2
 
+try:
+    from .tools import Search
+except ImportError:  # Supports `python model.py` from the agent directory.
+    from tools import Search
+    
 # Load environment
 load_dotenv(Path(__file__).parent / ".env")
 apikey = os.getenv("GROQ_API_KEY")
@@ -60,10 +65,10 @@ OUTPUT LAYOUT FOR SEARCH RESULTS (Engine, Transmission, Filters):
 """
 
 
-agent = create_agent(
+agent = create_react_agent(
     model=model,
     tools=[Search , Search2],  
-    system_prompt=SYSTEM_PROMPT
+    prompt=SYSTEM_PROMPT
 )
 
 def run_chat_session():
