@@ -7,6 +7,7 @@ from ddgs import DDGS
 from pydantic import BaseModel , Field
 from langchain_groq import ChatGroq
 import trafilatura
+import requests
 
 load_dotenv(Path(__file__).parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
@@ -18,7 +19,7 @@ tavily_search = TavilySearch(
     api_key=apikey
 )
 
-extractor_llm = ChatGroq(model="openai/gpt-oss-20b" , api_key=groq_apikey)
+extractor_llm = ChatGroq(model="openai/gpt-oss-20b" , api_key=groq_apikey , temperature=0.0)
 
 
 #################################################################################
@@ -50,75 +51,51 @@ def extract_specs_from_text(raw_text: str, car_info: str) -> str:
     response = extractor_llm.invoke(extraction_prompt)
     return response.content
 
+
+def fetch_full_page_content(url: str) -> str:
+    """Fetches full page body text while bypassing basic bot blocks."""
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=8)
+        if response.status_code == 200:
+            extracted = trafilatura.extract(
+                response.text, 
+                include_tables=True, 
+                include_links=False, 
+                output_format='txt'
+            )
+            if extracted and len(extracted) > 200:
+                # Return up to 2500 characters of rich main content per source
+                return extracted[:2500]
+    except Exception:
+        pass
+    return ""
+
 class SearchInput(BaseModel):
     brand: str = Field(description="Car brand, e.g., Renault, Dacia, Volkswagen")
     model: str = Field(description="Car model, e.g., Duster, Golf, Symbol")
     year: int = Field(description="Production year as integer, e.g., 2018")
     engine: str = Field(description="Engine code or displacement, e.g., 1.5 dCi, 1.2 16V")
+    mileage: int = Field(description="Current vehicle mileage in km, e.g., 180000")
     fluid_type: str = Field(description="Fluid type: Engine Oil, Gearbox Oil, or Oil Filter")
 
-################################################################################
-# tavily search tool
-@tool
-def Search(name: str, year: int, model: str, refrence: str, fluid_type: str):
-    """Search the internet for exact OEM fluid specifications and oil references for a car.
-    
-    Args:
-        name: The car brand (e.g., Renault, Volkswagen).
-        year: Model production year (e.g., 2018).
-        model: Specific car model (e.g., Symbol, Golf).
-        refrence: Engine code or gearbox spec (e.g., 1.2 16V D4F, 2.0 TDI).
-        fluid_type: Fluid category (Engine Oil, Gearbox Oil, Brake Fluid, Coolant).
-    """
-    
-    query = f"OEM {fluid_type} specification viscosity capacity {name} {model} {year} {refrence} in algeria"
-
-    result = tavily_search.invoke({"query": query})
-    
-    if isinstance(result, dict) and result.get("answer"):
-        return result["answer"]
-        
-    formatted = []
-    results_list = result.get("results", []) if isinstance(result, dict) else []
-    for r in results_list[:3]:
-        formatted.append(f"- {r.get('title', '')}: {r.get('content', '')}")
-        
-    return "\n".join(formatted) if formatted else "No technical results found."
 
 
-#raw ddgs search tool 
-@tool
-def Search2(name: str, year: int, model: str, refrence: str, fluid_type: str):
-    """Search the internet for exact OEM fluid specifications and oil references for a car.
-    
-    Args:
-        name: The car brand (e.g., Renault, Volkswagen).
-        year: Model production year (e.g., 2018).
-        model: Specific car model (e.g., Symbol, Golf).
-        refrence: Engine code or gearbox spec (e.g., 1.2 16V D4F, 2.0 TDI).
-        fluid_type: Fluid category (Engine Oil, Gearbox Oil, Brake Fluid, Coolant).
-    """
-
-
-    query = f"OEM {fluid_type} specification viscosity capacity {name} {model} {year} {refrence} in algeria"
-    
-    with DDGS(timeout=10) as ddgs:
-        results = ddgs.text(query , max_results=5)
-
-    if not results:
-        return "No results found."
-        
-    formatted = []
-    for r in results:
-        formatted.append(f"Title: {r['title']}\nURL: {r['href']}\nSnippet: {r['body']}\n")
-    
-    return "\n---\n".join(formatted)
+# Domains that block scrapers or lack technical specifications
+BLOCKED_DOMAINS = [
+    "oscaro.com", "piecesauto24.com", "mister-auto.com", 
+    "autodoc.fr", "amazon.fr", "ebay.fr", "cdiscount.com"
+]
 
 
 
 #Improved version of DDGS search 
 @tool(args_schema=SearchInput)
-def ddgs_Search(brand: str, model: str, year: int, engine: str, fluid_type: str) -> str:
+def ddgs_Search(brand: str, model: str, year: int, engine: str,  mileage: int, fluid_type: str) -> str:
     """Searches for technical automotive specifications, deep-scrapes the top sources,
     and returns a structured, noise-free summary of specs and warnings.
 
@@ -130,21 +107,31 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, fluid_type: str)
         fluid_type: Fluid category (Engine Oil, Gearbox Oil, Oil Filter).
     """
     car_info = f"{brand} {model} {year} {engine}"
-    ddgs = DDGS(timeout=10)
+
     fluid_lower = fluid_type.lower()
 
-    # Dynamic query building targeting exact component types
-    if "boite" in fluid_lower or "gearbox" in fluid_lower or "transmission" in fluid_lower:
-        query = f'"{brand} {model}" "{engine}" {year} "boite de vitesses" contenance huile viscosite -prix -achat'
+    # Exclude e-commerce catalog pages directly in the search query
+    exclude_query = " ".join([f"-site:{domain}" for domain in BLOCKED_DOMAINS])
+
+    if "boite" in fluid_lower or "gearbox" in fluid_lower:
+        query = f'"{brand} {model}" "{engine}" {year} "boite" OR "transmission" contenance norme viscosite {exclude_query}'
     elif "moteur" in fluid_lower or "engine" in fluid_lower:
-        query = f'"{brand} {model}" "{engine}" {year} contenance carter huile moteur norme constructeur -prix -achat'
-    elif "filtre" in fluid_lower or "filter" in fluid_lower:
-        query = f'"{brand} {model}" "{engine}" {year} reference filtre a huile -prix -achat'
+        query = f'"{brand} {model}" "{engine}" {year} contenance carter huile norme constructeur {exclude_query}'
     else:
-        query = f'"{brand} {model}" "{engine}" {year} contenance carter huile viscosité norme constructeur {fluid_type} -prix -achat'
+        query = f'"{brand} {model}" "{engine}" {year} {fluid_type} reference {exclude_query}'
 
     print(f"\n[DDGS Query]: {query}")
-    results = list(ddgs.text(query, max_results=4)) 
+
+    try:
+        ddgs = DDGS(timeout=15)
+        results = list(ddgs.text(query, max_results=10)) 
+    except Exception as e :
+        return f"Search network error: {e}"
+    
+
+    print("=== RAW SEARCH TOOL OUTPUT START ===")
+    print(results)
+    print("=== RAW SEARCH TOOL OUTPUT END ===")
 
     if not results:
         # Fallback query if first search is too restrictive
@@ -154,30 +141,39 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, fluid_type: str)
     if not results:
         return "No technical datasheets found for this vehicle configuration."
 
-    summarized_sources = []
 
-    for idx, item in enumerate(results, start=1):
-        url = item.get("href")
+    scraped_data = []
+    sources_count = 0
+
+    for item in results:
+        url = item.get("href", "")
         title = item.get("title", "")
         
-        try:
-            downloaded = trafilatura.fetch_url(url)
-            scraped_text = trafilatura.extract(
-                downloaded, 
-                include_tables=True, 
-                include_links=False, 
-                output_format='txt'
-            )
-
-            if scraped_text and len(scraped_text) > 150:
-                clean_summary = extract_specs_from_text(scraped_text, car_info)
-                summarized_sources.append(f"--- Source {idx} ({title}) ---\n{clean_summary}\n")
-            else:
-                # Fallback to DDGS snippet if page cannot be scraped
-                snippet = item.get("body", "")
-                summarized_sources.append(f"--- Source {idx} (Snippet) ---\n{snippet}\n")
-
-        except Exception:
+        # Skip forbidden domains if missed by DDGS operator
+        if any(domain in url for domain in BLOCKED_DOMAINS):
             continue
 
-    return "\n".join(summarized_sources) if summarized_sources else "Failed to extract content from sources."
+        full_content = fetch_full_page_content(url)
+        
+        if full_content:
+            sources_count += 1
+            if  len(full_content)>150 :
+                clean_content =  extract_specs_from_text(full_content, car_info)
+            else :
+                clean_content = full_content 
+
+            scraped_data.append(
+                f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
+            )
+        
+        # Stop once we have 3 deep, rich content pages
+        if sources_count >= 3:
+            break
+
+    if not scraped_data:
+        # Fallback to snippets if all deep scraping failed
+        snippets = [f"Snippet {i+1}: {item.get('body')}" for i, item in enumerate(results[:3])]
+        return "Deep scraping blocked. Raw Snippets:\n" + "\n".join(snippets)
+
+    return "\n\n".join(scraped_data)
+    
