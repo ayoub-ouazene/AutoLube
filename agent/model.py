@@ -8,11 +8,6 @@ from langchain_core.messages import HumanMessage
 from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
 
 
-try:
-    from .tools import Search
-except ImportError:  # Supports `python model.py` from the agent directory.
-    from tools import Search
-    
 # Load environment
 load_dotenv(Path(__file__).parent / ".env")
 apikey = os.getenv("GROQ_API_KEY")
