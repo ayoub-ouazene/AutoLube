@@ -1,24 +1,18 @@
 import os 
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
+
 from langchain.tools import tool
-from langchain_tavily import TavilySearch
 from ddgs import DDGS
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
 import trafilatura
 import requests
-import re
-from urllib.parse import urlparse
 
 load_dotenv(Path(__file__).parent / ".env")
-apikey = os.getenv("TAVILY_API_KEY")
 groq_apikey = os.getenv("GROQ_API_KEY")
-
-tavily_search = TavilySearch(
-    max_results=5,
-    api_key=apikey
-)
 
 extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temperature=0.0)
 
@@ -88,6 +82,15 @@ BLOCKED_BASE_DOMAINS = {
     "twitter", "x", "reddit", "linkedin"
 }
 
+ALLOWED_DOMAINS = [
+    "motul.com",
+    "liqui-moly.com",
+    "castrol.com",
+    "totalenergies.com",
+    "fuchs.com",
+    "kroon-oil.com",
+    "oilspecifications.org"
+]
 
 
 def is_domain_blocked(url: str) -> bool:
@@ -96,116 +99,130 @@ def is_domain_blocked(url: str) -> bool:
         return True
     try:
         netloc = urlparse(url).netloc.lower()
-        # Clean subdomain prefixes
         netloc = re.sub(r'^www\.', '', netloc)
-        
-        # Check against blocked base keywords
         for blocked in BLOCKED_BASE_DOMAINS:
             if blocked in netloc:
                 return True
         return False
     except Exception:
-        return True  # Block malformed URLs
+        return True 
 
 def sanitize_search_results(results: list[dict]) -> list[dict]:
     """Filters out blacklisted e-commerce domains from raw DDGS outputs."""
     sanitized = []
     for item in results:
-        # DDGS sometimes uses 'href', sometimes 'link'
         url = item.get("href") or item.get("link") or ""
         if not is_domain_blocked(url):
             sanitized.append(item)
     return sanitized
 
 
+def fetch_whitelisted_results(ddgs , car_info: str, fluid_type: str, allowed_domains: list[str]) -> list[dict]:
+    """Iterates through individual whitelisted domains to collect target search results."""
+    fluid_lower = fluid_type.lower()
+    
+    if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
+        keyword = "gearbox transmission fluid spec capacity"
+    elif any(k in fluid_lower for k in ["filtre", "filter"]):
+        keyword = "oil filter reference OEM"
+    else:
+        keyword = "engine oil capacity OEM specification"
+
+    collected_results = []
+    seen_urls = set()
+
+    for domain in allowed_domains:
+        domain_query = f"{car_info} {keyword} site:{domain}"
+        print(f"[DDGS Domain Query]: {domain_query}")
+        
+        try:
+            # Fetch 2 results per whitelisted site to keep search fast
+            domain_results = list(ddgs.text(domain_query, max_results=2))
+            for item in domain_results:
+                url = item.get("href") or item.get("link") or ""
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    collected_results.append(item)
+        except Exception as e:
+            print(f"Warning: Failed searching domain {domain}: {e}")
+            continue
+
+    return collected_results
+
+
+
 @tool(args_schema=SearchInput)
-def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fluid_type: str) -> str:
+def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fluid_type: str) -> dict:
     """ Searches for technical automotive specifications, deep-scrapes the top sources,
         and returns a structured, noise-free summary of specs and warnings.
     """
     car_info = f"{brand} {model} {engine} {year}".strip()
     fluid_lower = fluid_type.lower()
-
     engine_lower = engine.lower()
     is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel", "td"])
 
-
     if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
-        query= f"{car_info} boite vitesse transmission contenance viscosite norme"
-
-    # 2. Oil Filters (NEW)
+        query = f"{car_info} boite vitesse transmission contenance viscosite norme"
     elif any(k in fluid_lower for k in ["filtre", "filter"]):
-        query=  f"{car_info} filtre a huile reference OEM catalog"
-
-    # 3. Engine Oil
+        query = f"{car_info} filtre a huile reference OEM catalog"
     elif any(k in fluid_lower for k in ["moteur", "engine", "huile"]):
-
         if is_diesel and year >= 2009:
             query = f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS"
-        query=  f"{car_info} contenance carter huile norme OEM"
-
-    # 4. Clean, General Fallback (Broad & reliable)
+        else:
+            query = f"{car_info} contenance carter huile norme OEM"
     else:
-        query=  f"{car_info} {fluid_type} specs"
-
+        query = f"{car_info} {fluid_type} specs"
 
     print(f"\n[DDGS Deterministic Query]: {query}")
-
+   
     try:
         ddgs = DDGS(timeout=15)
         raw_results = list(ddgs.text(query, max_results=12)) 
-    except Exception as e:
-        return f"Search network error: {e}"
+        raw_special_results = fetch_whitelisted_results(
+            ddgs=ddgs, 
+            car_info=car_info, 
+            fluid_type=fluid_type, 
+            allowed_domains=ALLOWED_DOMAINS
+        )
 
-    print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
-    results = sanitize_search_results(raw_results)
-    print(f"=== SANITIZED RESULTS COUNT: {len(results)} ===")
-    print(results)
-    print("======================================results============================")
+    except Exception as e:
+        return {"error": f"Search network error: {e}"}
+
+    general_results = sanitize_search_results(raw_results)
+   
 
     if not results:
-        # Informational fallback query without heavy operators
         fallback_query = f"{brand} {model} {engine} {year} carnet entretien fiche technique"
         print(f"\n[DDGS Fallback Query]: {fallback_query}")
         raw_fallback = list(ddgs.text(fallback_query, max_results=6))
         results = sanitize_search_results(raw_fallback)
 
-    if not results:
-        return "No technical datasheets found for this vehicle configuration."
-
-    scraped_data = []
-    sources_count = 0
-
-    for item in results:
-        url = item.get("href") or item.get("link") or ""
-        title = item.get("title", "")
-
-        if not url:
-            continue
-
-        full_content = fetch_full_page_content(url)
+    
+    def scrape_results_list(results_list: list[dict]) -> str:
+        scraped_data = []
+        sources_count = 0
         
-        if full_content:
-            sources_count += 1
-            if len(full_content) > 150:
-                clean_content = extract_specs_from_text(full_content, car_info)
-            else:
-                clean_content = full_content 
+        for item in results_list:
+            url = item.get("href") or item.get("link") or ""
+            title = item.get("title", "")
+            if not url:
+                continue
 
-            scraped_data.append(
-                f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
-            )
-        
-        # Stop once we have 3 deep technical sources
-        if sources_count >= 3:
-            break
+            full_content = fetch_full_page_content(url)
+            if full_content:
+                sources_count += 1
+                clean_content = extract_specs_from_text(full_content, car_info) if len(full_content) > 150 else full_content
+                scraped_data.append(f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n")
 
-    if not scraped_data:
-        # Fallback to snippets if extraction failed
-        snippets = []
-        for i, item in enumerate(results[:3]):
-            body_text = item.get("body") or item.get("snippet") or ""
-            snippets.append(f"Snippet {i+1}: {body_text}")
-        return "Deep scraping blocked. Raw Snippets:\n" + "\n".join(snippets)
+            if sources_count >= 3:
+                break
+                
+        return "\n\n".join(scraped_data)
 
-    return "\n\n".join(scraped_data)
+    first_set = scrape_results_list(general_results) or "No technical datasheets found in general search."
+    second_set = scrape_results_list(raw_special_results) or "No OEM specification datasheets found from whitelisted domains."
+
+    return {
+        "OFFICIAL_OEM_MANUFACTURER_and_TECHNICAL_SPEC_DB": second_set,
+        "GENERAL_WEB_SEARCH": first_set
+    }
