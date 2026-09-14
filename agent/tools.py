@@ -83,11 +83,11 @@ class SearchInput(BaseModel):
 
 
 BLOCKED_BASE_DOMAINS = {
-    "oscaro", "autodoc", "auto-doc", "piecesauto24", "piecesauto",
-    "mister-auto", "amazon", "ebay", "cdiscount", "partauto",
-    "motordoctor", "lacentrale", "caradisiac", "facebook", "instagram",
-    "yakarouler", "auto-doc", "piecesauto", "mongrossisteauto", "norauto", "feuvert"
+    "amazon", "ebay", "aliexpress", "cdiscount", "walmart",
+    "facebook", "instagram", "tiktok", "pinterest", "youtube",
+    "twitter", "x", "reddit", "linkedin"
 }
+
 
 
 def is_domain_blocked(url: str) -> bool:
@@ -123,16 +123,24 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
     """ Searches for technical automotive specifications, deep-scrapes the top sources,
         and returns a structured, noise-free summary of specs and warnings.
     """
-    car_info = f"{brand} {model} {year} {engine}"
+    car_info = f"{brand} {model} {engine} {year}".strip()
     fluid_lower = fluid_type.lower()
 
-    # Deterministic query construction geared towards technical documentation
-    if "boite" in fluid_lower or "gearbox" in fluid_lower or "transmission" in fluid_lower:
-        query = f'{brand} {model} {engine} {year} "fiche technique" OR "manuel" boite vitesse transmission contenance viscosite norme'
-    elif "moteur" in fluid_lower or "engine" in fluid_lower or "huile" in fluid_lower:
-        query = f'{brand} {model} {engine} {year} "fiche technique" OR "revue technique" contenance carter huile norme OEM'
+    if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
+        query= f"{car_info} boite vitesse transmission contenance viscosite norme"
+
+    # 2. Oil Filters (NEW)
+    elif any(k in fluid_lower for k in ["filtre", "filter"]):
+        query=  f"{car_info} filtre a huile reference OEM catalog"
+
+    # 3. Engine Oil
+    elif any(k in fluid_lower for k in ["moteur", "engine", "huile"]):
+        query=  f"{car_info} contenance carter huile norme OEM"
+
+    # 4. Clean, General Fallback (Broad & reliable)
     else:
-        query = f'{brand} {model} {engine} {year} {fluid_type} "reference technique" OR "carnet entretien"'
+        query=  f"{car_info} {fluid_type} specs"
+
 
     print(f"\n[DDGS Deterministic Query]: {query}")
 
@@ -145,6 +153,8 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
     print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
     results = sanitize_search_results(raw_results)
     print(f"=== SANITIZED RESULTS COUNT: {len(results)} ===")
+    print(results)
+    print("======================================results============================")
 
     if not results:
         # Informational fallback query without heavy operators
