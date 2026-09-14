@@ -2,15 +2,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-<<<<<<< HEAD
 from langchain.agents import create_agent
 from agent.tools import ddgs_Search
 from langchain_core.messages import HumanMessage
 from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
-=======
-from langgraph.prebuilt import create_react_agent
-from agent.tools import Search , Search2
->>>>>>> 9b5f2eea853253591c9d9752bcb7900c5727123d
+
 
 try:
     from .tools import Search
@@ -25,16 +21,12 @@ apikey = os.getenv("GROQ_API_KEY")
 model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey ,  temperature=0.0 , )
 
 
-agent = create_react_agent(
+agent = create_agent(
     model=model,
-<<<<<<< HEAD
     tools=[ddgs_Search],  
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
    
-=======
-    tools=[Search , Search2],  
-    prompt=SYSTEM_PROMPT
->>>>>>> 9b5f2eea853253591c9d9752bcb7900c5727123d
+
 )
 
 def run_chat_session():
