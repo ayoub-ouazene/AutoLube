@@ -126,6 +126,10 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
     car_info = f"{brand} {model} {engine} {year}".strip()
     fluid_lower = fluid_type.lower()
 
+    engine_lower = engine.lower()
+    is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel", "td"])
+
+
     if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
         query= f"{car_info} boite vitesse transmission contenance viscosite norme"
 
@@ -135,6 +139,9 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
 
     # 3. Engine Oil
     elif any(k in fluid_lower for k in ["moteur", "engine", "huile"]):
+
+        if is_diesel and year >= 2009:
+            query = f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS"
         query=  f"{car_info} contenance carter huile norme OEM"
 
     # 4. Clean, General Fallback (Broad & reliable)
