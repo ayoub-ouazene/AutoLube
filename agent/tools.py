@@ -186,16 +186,17 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
         )
 
     except Exception as e:
+      
         return {"error": f"Search network error: {e}"}
 
     general_results = sanitize_search_results(raw_results)
    
 
-    if not results:
+    if not general_results:
         fallback_query = f"{brand} {model} {engine} {year} carnet entretien fiche technique"
         print(f"\n[DDGS Fallback Query]: {fallback_query}")
         raw_fallback = list(ddgs.text(fallback_query, max_results=6))
-        results = sanitize_search_results(raw_fallback)
+        general_results = sanitize_search_results(raw_fallback)
 
     
     def scrape_results_list(results_list: list[dict]) -> str:
