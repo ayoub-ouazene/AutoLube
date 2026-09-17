@@ -10,6 +10,7 @@ import trafilatura
 import requests
 import re
 from urllib.parse import urlparse
+import time 
 
 load_dotenv(Path(__file__).parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
@@ -44,6 +45,7 @@ def extract_specs_from_text(raw_text: str, car_info: str) -> str:
     - Do NOT drop warnings, variant distinctions, or conditional notes.
     - Do NOT add marketing fluff, prices, or store links.
     - Format output as a clear bulleted technical summary.
+ 
 
     Webpage Content:
     {raw_text[:4000]}
@@ -85,7 +87,7 @@ class SearchInput(BaseModel):
 BLOCKED_BASE_DOMAINS = {
     "amazon", "ebay", "aliexpress", "cdiscount", "walmart",
     "facebook", "instagram", "tiktok", "pinterest", "youtube",
-    "twitter", "x", "reddit", "linkedin"
+    "twitter",  "reddit", "linkedin"
 }
 
 
@@ -124,38 +126,73 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
         and returns a structured, noise-free summary of specs and warnings.
     """
     car_info = f"{brand} {model} {engine} {year}".strip()
+    car_info_alt = f"{year} {brand} {model} {engine}".strip()
     fluid_lower = fluid_type.lower()
 
     engine_lower = engine.lower()
     is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel", "td"])
 
 
+    # 1. Transmission
     if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
-        query= f"{car_info} boite vitesse transmission contenance viscosite norme"
+        queries = [
+            f"{car_info} boite vitesse transmission contenance viscosite norme",
+            f"{car_info_alt} transmission fluid capacity viscosity specification",
+            f"{engine} gearbox oil capacity litres type specification",
+        ]
 
-    # 2. Oil Filters (NEW)
+    # 2. Oil Filter
     elif any(k in fluid_lower for k in ["filtre", "filter"]):
-        query=  f"{car_info} filtre a huile reference OEM catalog"
+        queries = [
+            f"{car_info} filtre a huile reference OEM catalog",
+            f"{car_info_alt} oil filter OEM part number reference",
+            f"{engine} oil filter reference OEM number",
+        ]
 
     # 3. Engine Oil
     elif any(k in fluid_lower for k in ["moteur", "engine", "huile"]):
-
         if is_diesel and year >= 2009:
-            query = f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS"
-        query=  f"{car_info} contenance carter huile norme OEM"
+            queries = [
+                f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
+                f"{car_info_alt} engine oil capacity viscosity specification DPF",
+                f"{engine} engine oil capacity viscosity litres specification",
+            ]
+        else:
+            queries = [
+                f"{car_info} contenance carter huile norme OEM",
+                f"{car_info_alt} engine oil capacity viscosity specification",
+                f"{engine} engine oil capacity viscosity litres specification",
+            ]
 
-    # 4. Clean, General Fallback (Broad & reliable)
+    # 4. Fallback
     else:
-        query=  f"{car_info} {fluid_type} specs"
+        queries = [
+            f"{car_info} {fluid_type} specs",
+            f"{car_info_alt} {fluid_type} specification",
+            f"{engine} {fluid_type} capacity viscosity specification",
+        ]
 
 
-    print(f"\n[DDGS Deterministic Query]: {query}")
+    raw_results = []
+    seen_urls = set()
 
     try:
         ddgs = DDGS(timeout=15)
-        raw_results = list(ddgs.text(query, max_results=12)) 
-    except Exception as e:
+        for i, q in enumerate(queries):
+            print(f"[DDGS Query {i+1}/{len(queries)}]: {q}")
+            try:
+                for r in ddgs.text(q, max_results=4):
+                    url = r.get("href") or r.get("link") or ""
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        r["_query"] = q
+                        raw_results.append(r)
+            except Exception as e:
+                print(f"[Query {i+1} failed]: {e}")
+            if i < len(queries) - 1:
+                time.sleep(1.5)
 
+    except Exception as e:
         return f"Search network error: {e}"
 
     print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
@@ -164,17 +201,17 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
     print(results)
     print("======================================results============================")
 
-
+    # ---- 3. Fallback (unchanged) ----
     if not results:
-
         fallback_query = f"{brand} {model} {engine} {year} carnet entretien fiche technique"
         print(f"\n[DDGS Fallback Query]: {fallback_query}")
         raw_fallback = list(ddgs.text(fallback_query, max_results=6))
-        general_results = sanitize_search_results(raw_fallback)
+        results = sanitize_search_results(raw_fallback)
 
     if not results:
         return "No technical datasheets found for this vehicle configuration."
 
+    # ---- 4. Fetch top 3 (unchanged) ----
     scraped_data = []
     sources_count = 0
 
@@ -186,24 +223,23 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
             continue
 
         full_content = fetch_full_page_content(url)
-        
+
         if full_content:
             sources_count += 1
             if len(full_content) > 150:
                 clean_content = extract_specs_from_text(full_content, car_info)
             else:
-                clean_content = full_content 
+                clean_content = full_content
 
             scraped_data.append(
                 f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
             )
-        
-        # Stop once we have 3 deep technical sources
+
         if sources_count >= 3:
             break
 
+    # ---- 5. Snippet fallback (unchanged, but now snippets come from all 3 queries) ----
     if not scraped_data:
-        # Fallback to snippets if extraction failed
         snippets = []
         for i, item in enumerate(results[:3]):
             body_text = item.get("body") or item.get("snippet") or ""
