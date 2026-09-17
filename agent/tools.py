@@ -3,6 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain.tools import tool
 from langchain_tavily import TavilySearch
+from tavily import TavilyClient
 from ddgs import DDGS
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
@@ -16,14 +17,61 @@ load_dotenv(Path(__file__).parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
 groq_apikey = os.getenv("GROQ_API_KEY")
 
-tavily_search = TavilySearch(
-    max_results=5,
-    api_key=apikey
-)
+
+
+tavily_client = TavilyClient(api_key=apikey)
 
 extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temperature=0.0)
 
+TRUSTED_DOMAINS = [
+   "castrol.com", "liqui-moly.com", "motul.com", 
+    "totalenergies.com", "fuchs.com", "kroon-oil.com", "oilspecifications.org"
+]
+
 #################################################################################
+
+
+def execute_tavily_fallback(query: str, car_info: str) -> str:
+    """Executes Tavily search using the official Python SDK."""
+    print(f"\n[Tavily Fallback Triggered]: {query}")
+    try:
+        # 1. Search restricted to trusted lubricant databases
+        response = tavily_client.search(
+            query=query,
+            max_results=4,
+            search_depth="basic",
+            include_domains=TRUSTED_DOMAINS
+        )
+        results = response.get("results", [])
+        print(f"[Tavily] Trusted domains returned {len(results)} results.")
+
+        # 2. If restricted domains return nothing, try open web search
+        if not results:
+            print("[Tavily] No trusted domain results. Querying open web...")
+            response = tavily_client.search(
+                query=f"{car_info} technical specs oil capacity OEM standard",
+                max_results=4,
+                search_depth="basic",
+                exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"]
+            )
+            results = response.get("results", [])
+            print(f"[Tavily] Open web returned {len(results)} results.")
+
+        if not results:
+            return "No technical data found via primary or secondary search."
+
+        formatted = []
+        for i, r in enumerate(results, 1):
+            formatted.append(f"Source {i} ({r.get('title')} - {r.get('url')}):\n{r.get('content')}")
+
+        return "\n\n".join(formatted)
+
+    except Exception as e:
+        print(f"❌ [Tavily Error Caught]: {e}")
+        return f"Secondary search error: {str(e)}"
+
+
+    
 
 def extract_specs_from_text(raw_text: str, car_info: str) -> str:
     """Uses a micro-LLM to clean scraped web content into a rich technical summary."""
@@ -45,10 +93,9 @@ def extract_specs_from_text(raw_text: str, car_info: str) -> str:
     - Do NOT drop warnings, variant distinctions, or conditional notes.
     - Do NOT add marketing fluff, prices, or store links.
     - Format output as a clear bulleted technical summary.
- 
 
     Webpage Content:
-    {raw_text[:4000]}
+    {raw_text[:3000]}
     """
     response = extractor_llm.invoke(extraction_prompt)
     return response.content
@@ -70,8 +117,9 @@ def fetch_full_page_content(url: str) -> str:
                 output_format='txt'
             )
             if extracted and len(extracted) > 200:
-                return extracted[:2500]
-    except Exception:
+                return extracted[:3000]
+    except Exception as  e:
+        print(url, type(e).__name__)
         pass
     return ""
 
@@ -91,33 +139,79 @@ BLOCKED_BASE_DOMAINS = {
 }
 
 
-
 def is_domain_blocked(url: str) -> bool:
     """Checks if a URL belongs to an e-commerce or blacklisted domain regardless of TLD."""
     if not url:
         return True
     try:
         netloc = urlparse(url).netloc.lower()
-        # Clean subdomain prefixes
         netloc = re.sub(r'^www\.', '', netloc)
         
-        # Check against blocked base keywords
         for blocked in BLOCKED_BASE_DOMAINS:
             if blocked in netloc:
                 return True
         return False
     except Exception:
-        return True  # Block malformed URLs
+        return True 
 
 def sanitize_search_results(results: list[dict]) -> list[dict]:
     """Filters out blacklisted e-commerce domains from raw DDGS outputs."""
     sanitized = []
     for item in results:
-        # DDGS sometimes uses 'href', sometimes 'link'
         url = item.get("href") or item.get("link") or ""
         if not is_domain_blocked(url):
             sanitized.append(item)
     return sanitized
+
+
+
+
+import re
+
+
+def is_data_sufficient(text: str, fluid_type: str) -> bool:
+    """
+    Car-agnostic check to verify if scraped text contains enough technical data
+    for the requested fluid type.
+    """
+    if not text or len(text.strip()) < 150:
+        return False
+
+    text_lower = text.lower()
+    fluid_lower = fluid_type.lower()
+
+    is_filter  = any(k in fluid_lower for k in ("filtre", "filter"))
+    is_gearbox = any(k in fluid_lower for k in ("boite", "boîte", "gearbox", "transmission"))
+
+    # 1. Universal Capacity Pattern
+    capacity_pattern = r'(\b\d+[\.,]?\d*\s*(l|litre|litres|liter|liters|qt|quarts)\b|\b(contenance|carter|capacity|sump)\b.*?\b\d+[\.,]?\d*\b)'
+    has_capacity = bool(re.search(capacity_pattern, text_lower))
+
+    # 2. Universal Viscosity Pattern (engine + gear grades)
+    viscosity_pattern = r'\b(0|5|10|15|20|70|75|80|85)w[-_]?(16|20|30|40|50|60|80|90|110|140)\b'
+    has_viscosity = bool(re.search(viscosity_pattern, text_lower))
+
+    # 3. Universal Spec Keywords (fluid-agnostic)
+    spec_keywords = [
+        r'\bacea\b', r'\bapi\b', r'\bilsac\b', r'\bsae\b', r'\bjaso\b',
+        r'\bgl[- ]?[45]\b', r'\batf\b', r'\bmtf\b', r'\bcvt\b', r'\bdsg\b',
+        r'\bdexron\b', r'\bmercon\b',
+        r'\b(norme|norm|specification|spec|approval|homologation|oem|standard|reference|part number)\b'
+    ]
+    has_spec_keyword = any(re.search(p, text_lower) for p in spec_keywords)
+
+    # 4. Oil Filter: no capacity/viscosity — look for a part reference
+    if is_filter:
+        filter_pattern = r'\b(oc|op|ph|hu|wl|w)\s?-?\d{2,5}\b|\b\d{6,}[a-z0-9]{0,4}\b'
+        return bool(re.search(filter_pattern, text_lower))
+
+    # 5. Gearbox Oil: capacity OR gear viscosity, AND a spec keyword
+    if is_gearbox:
+        return (has_capacity or has_viscosity) and has_spec_keyword
+
+    # 6. Engine Oil (default): capacity AND (viscosity OR spec keyword)
+    return has_capacity and (has_viscosity or has_spec_keyword)
+
 
 
 @tool(args_schema=SearchInput)
@@ -130,8 +224,7 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
     fluid_lower = fluid_type.lower()
 
     engine_lower = engine.lower()
-    is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel", "td"])
-
+    is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel"])
 
     # 1. Transmission
     if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
@@ -150,7 +243,7 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
         ]
 
     # 3. Engine Oil
-    elif any(k in fluid_lower for k in ["moteur", "engine", "huile"]):
+    elif any(k in fluid_lower for k in ["moteur", "engine"]):
         if is_diesel and year >= 2009:
             queries = [
                 f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
@@ -172,7 +265,6 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
             f"{engine} {fluid_type} capacity viscosity specification",
         ]
 
-
     raw_results = []
     seen_urls = set()
 
@@ -193,25 +285,18 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
                 time.sleep(1.5)
 
     except Exception as e:
-        return f"Search network error: {e}"
+        print(f"DDGS Network Error: {e}")
+        return execute_tavily_fallback(queries[0], car_info)
 
     print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
     results = sanitize_search_results(raw_results)
     print(f"=== SANITIZED RESULTS COUNT: {len(results)} ===")
-    print(results)
-    print("======================================results============================")
 
-    # ---- 3. Fallback (unchanged) ----
+
+    # If DDGS still yielded no results, switch to Tavily
     if not results:
-        fallback_query = f"{brand} {model} {engine} {year} carnet entretien fiche technique"
-        print(f"\n[DDGS Fallback Query]: {fallback_query}")
-        raw_fallback = list(ddgs.text(fallback_query, max_results=6))
-        results = sanitize_search_results(raw_fallback)
+        return execute_tavily_fallback(queries[0], car_info)
 
-    if not results:
-        return "No technical datasheets found for this vehicle configuration."
-
-    # ---- 4. Fetch top 3 (unchanged) ----
     scraped_data = []
     sources_count = 0
 
@@ -225,9 +310,15 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
         full_content = fetch_full_page_content(url)
 
         if full_content:
-            sources_count += 1
+
+            sources_count+=1 
             if len(full_content) > 150:
-                clean_content = extract_specs_from_text(full_content, car_info)
+                try: 
+                    clean_content = extract_specs_from_text(full_content, car_info)
+                except Exception as e:
+                    clean_content = full_content
+                    print(f"Error in extractor Model : {e}")    
+                    
             else:
                 clean_content = full_content
 
@@ -235,15 +326,32 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
                 f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
             )
 
-        if sources_count >= 3:
+        if is_data_sufficient("\n\n".join(scraped_data)  , fluid_type) or sources_count >= 5:
             break
 
-    # ---- 5. Snippet fallback (unchanged, but now snippets come from all 3 queries) ----
+    # Snippet Fallback if deep scraping fails
     if not scraped_data:
         snippets = []
         for i, item in enumerate(results[:3]):
             body_text = item.get("body") or item.get("snippet") or ""
             snippets.append(f"Snippet {i+1}: {body_text}")
-        return "Deep scraping blocked. Raw Snippets:\n" + "\n".join(snippets)
 
-    return "\n\n".join(scraped_data)
+
+        output_text = "Deep scraping blocked. Raw Snippets:\n" + "\n".join(snippets)
+
+    else:
+        output_text = "\n\n".join(scraped_data)
+
+    # Final Check: If DDGS output lacks technical depth, trigger Tavily
+    if not is_data_sufficient(output_text , fluid_type):
+        print("\n[DDGS data insufficient. Fetching Tavily to supplement results...]")
+        tavily_text = execute_tavily_fallback(queries[0], car_info)
+        
+        return (
+            f"=== PRIMARY SOURCE DATA (DDGS - Partial) ===\n"
+            f"{output_text}\n\n"
+            f"=== SECONDARY SOURCE DATA (Tavily - Supplemental) ===\n"
+            f"{tavily_text}"
+        )
+
+    return output_text

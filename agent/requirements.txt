@@ -15,3 +15,7 @@ python-dotenv
 
 # Checkpointer for Conversation Memory
 langgraph-checkpoint-sqlite
+
+
+#to use tavily search 
+tavily-python

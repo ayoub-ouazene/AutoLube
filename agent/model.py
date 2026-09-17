@@ -46,7 +46,13 @@ def run_chat_session():
         chat_history = response["messages"]
 
         # Print final text response from agent
-        print(f"\nAI Assistant: {chat_history[-1].content}\n")
+        last_response = chat_history[-1].content
+        if isinstance(last_response, list):
+            last_response = "".join(b.get("text","") for b in last_response if isinstance(b, dict))
+
+        print(f"\nAI Assistant: {last_response}\n")
+
+
 
 if __name__ == "__main__":
     run_chat_session()
