@@ -20,8 +20,7 @@ agent = create_agent(
     model=model,
     tools=[ddgs_Search],  
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-   
-
+    
 )
 
 def run_chat_session():

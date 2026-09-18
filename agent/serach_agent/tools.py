@@ -71,34 +71,60 @@ def execute_tavily_fallback(query: str, car_info: str) -> str:
         return f"Secondary search error: {str(e)}"
 
 
-    
 
-def extract_specs_from_text(raw_text: str, car_info: str) -> str:
+def extract_specs_from_text(raw_text: str, car_info: str, fluid_type: str) -> str:
     """Uses a micro-LLM to clean scraped web content into a rich technical summary."""
-    extraction_prompt = f"""
-    You are a precise automotive technical data extractor.
-    Analyze the following webpage content for the vehicle: {car_info}.
+    fluid_lower = fluid_type.lower()
 
-    TASK:
-    Extract ALL technical facts, numbers, and conditional notes regarding:
-    1. Exact fluid sump/carter capacity in Liters (with/without filter).
-    2. Recommended oil viscosities (e.g., 0W-30, 5W-30, 5W-40, 75W-80, 80W-90).
-    3. Official OEM specification standards (e.g., PSA B71 2312, VW 507.00, RN0700, RN0720, RN17, API GL-4).
-    4. Critical warnings or conditions (e.g., wet-belt timing system, DPF/FAP diesel requirements, high-mileage recommendations).
+    if any(k in fluid_lower for k in ("boite", "boîte", "gearbox", "transmission")):
+        priority = """
+        1. OE fluid reference / OEM part number (e.g., VW G 052 512 A2, Renault NFJ / NFX, PSA 9730.A1, Ford WSS-M2C200-D2, MB 235.10).
+        2. Viscosity grade (e.g., 75W-80, 75W-90, 80W-90, ATF).
+        3. API / ACEA / OEM class (e.g., API GL-4, GL-4+, GL-5, Dexron, Mercon, MTF).
+        4. Sump capacity in Liters (with/without filter).
+        5. Critical warnings (GL-5 vs yellow metals / synchronizers, ATF vs MTF distinction, manual vs automatic).
+        """
+    elif any(k in fluid_lower for k in ("filtre", "filter")):
+        priority = """
+        1. Exact OE part number (e.g., 7700274177, 06A115561B, 8200768913).
+        2. Aftermarket reference (e.g., MANN W 712/95, Purflux LS924, Bosch F026407...).
+        3. Filter type (spin-on, cartridge, housing) and thread/height if listed.
+        4. Compatibility notes (engine code, year range, variant).
+        """
+    else:
+        priority = """
+            1. Exact sump/carter capacity in Liters (with/without filter).
+            2. Recommended viscosity grade (e.g., 0W-30, 5W-30, 5W-40).
+            3. Official OEM specification (e.g., PSA B71 2312, VW 507.00, RN0700 / RN0720 / RN17, MB 229.51, dexos).
+            4. Critical warnings (wet-belt timing, DPF/FAP Low-SAPS requirement, high-mileage adjustment).
+            """
 
-    CRITICAL INSTRUCTION FOR MULTIPLE VARIANTS:
-    If the text contains specs for DIFFERENT variants (e.g., 2WD/4x2 vs. 4x4, Manual vs. Automatic, or Manual Gearbox vs. Rear Axle/Differential/Pont), DO NOT merge or average them. List each variant separately with its exact condition and specs!
+    extraction_prompt = f"""You are a precise automotive technical data extractor.
+            Analyze the following webpage content for the vehicle: {car_info}.
+            Requested fluid type: {fluid_type}
 
-    RULES:
-    - Do NOT drop warnings, variant distinctions, or conditional notes.
-    - Do NOT add marketing fluff, prices, or store links.
-    - Format output as a clear bulleted technical summary.
+            TASK:
+            Extract ALL technical facts, numbers, and conditional notes. Prioritize in this order:
+            {priority}
 
-    Webpage Content:
-    {raw_text[:3000]}
-    """
+            CRITICAL INSTRUCTION FOR MULTIPLE VARIANTS:
+            If the text contains specs for DIFFERENT variants (e.g., 2WD/4x2 vs. 4x4, Manual vs. Automatic, Manual Gearbox vs. Rear Axle / Differential / Pont, different engine codes or years), DO NOT merge or average them. List each variant separately with its exact condition and specs.
+
+            RULES:
+            - Do NOT invent values. If a fact is not present in the text, omit it.
+            - Do NOT drop warnings, variant distinctions, or conditional notes.
+            - Do NOT add marketing fluff, prices, or store links.
+            - Format output as a clear bulleted technical summary.
+
+            Webpage Content:
+            {raw_text[:3000]}
+            """
     response = extractor_llm.invoke(extraction_prompt)
-    return response.content
+    content = response.content
+    if isinstance(content, list):  # newer LangChain returns content blocks
+        content = "".join(b.get("text", "") for b in content if isinstance(b, dict))
+    return content
+    
 
 
 def fetch_full_page_content(url: str) -> str:
@@ -127,7 +153,36 @@ class SearchInput(BaseModel):
     brand: str = Field(description="Car brand, e.g., Renault, Dacia, Volkswagen")
     model: str = Field(description="Car model, e.g., Duster, Golf, Symbol")
     year: int = Field(description="Production year as integer, e.g., 2018")
-    engine: str = Field(description="Engine code or displacement, e.g., 1.5 dCi, 1.2 16V")
+
+    engine: str = Field(
+        default="",
+        description=(
+            "Engine code or displacement. "
+            "REQUIRED for Engine Oil and Oil Filter (e.g., '1.5 dCi 90', 'EP6FDT 156 THP'). "
+            "OPTIONAL for Gearbox Oil — provide only if the user mentioned it, as extra context "
+            "that helps disambiguate variants. Never put the gearbox code in this field."
+        )
+    )
+
+    gearbox_ref: str = Field(
+        default="",
+        description=(
+            "Gearbox reference / ccode ONLY — REQUIRED for Gearbox Oil. "
+            "Examples: 'MQ250', 'TL4', 'MA5', 'DQ250', '02Q'. "
+            "Do NOT include the transmission type here — that goes in transmission_type."
+            "Leave empty otherwise."
+        )
+    )
+
+    transmission_type: str = Field(
+        default="",
+        description=(
+            "Transmission type — REQUIRED for Gearbox Oil. "
+            "One of: 'Manual', 'Automatic', 'DSG/DCT', 'CVT'. "
+            "Leave empty otherwise."
+        )
+    )
+
     mileage: int = Field(description="Current vehicle mileage in km, e.g., 180000")
     fluid_type: str = Field(description="Fluid type: Engine Oil, Gearbox Oil, or Oil Filter")
 
@@ -215,35 +270,85 @@ def is_data_sufficient(text: str, fluid_type: str) -> bool:
 
 
 @tool(args_schema=SearchInput)
-def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fluid_type: str) -> str:
+def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: str , engine: str = "", gearbox_ref: str = "", transmission_type: str = "",) -> str:
     """ Searches for technical automotive specifications, deep-scrapes the top sources,
         and returns a structured, noise-free summary of specs and warnings.
     """
-    car_info = f"{brand} {model} {engine} {year}".strip()
-    car_info_alt = f"{year} {brand} {model} {engine}".strip()
+
+  
+    # Base identifiers (no engine, no gearbox — added per branch)
+    base = f"{brand} {model} {year}".strip()
+    base_alt = f"{year} {brand} {model}".strip()
+
+    # For gearbox queries: prefer dedicated gearbox_ref, fall back to engine for legacy calls
+    trans_label = transmission_type.strip()
+    gearbox_code = f"{gearbox_ref or engine} {trans_label}".strip()
+    
+    
     fluid_lower = fluid_type.lower()
 
     engine_lower = engine.lower()
     is_diesel = any(d in engine_lower for d in ["dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel"])
 
-    # 1. Transmission
-    if any(k in fluid_lower for k in ["boite", "gearbox", "transmission"]):
+    is_gearbox_req = any(k in fluid_lower for k in ["boite", "gearbox", "transmission"])
+
+    _car_parts = [brand, model, year]
+
+    # 1. Transmission / Gearbox
+    if is_gearbox_req:
+        
+        if  not gearbox_code:
+             return ("Paramètre manquant : référence/code de boîte requis pour une recherche "
+                "d'huile de boîte. Ex. : MQ250, TL4, MA5, DQ250.")
+        
+        parts = [base]
+        if gearbox_code:
+            parts.append(gearbox_code)
+            _car_parts.append(gearbox_code)
+        if trans_label:
+            parts.append(trans_label)
+            _car_parts.append(trans_label)
+
+        car_gb = " ".join(parts).strip()
+
+        parts_alt = [base_alt]
+        if gearbox_code:
+            parts_alt.append(gearbox_code)
+        if trans_label:
+            parts_alt.append(trans_label)
+    
+        car_gb_alt = " ".join(parts_alt).strip()
+        engine_part = f" {engine}" if engine else ""
+
         queries = [
-            f"{car_info} boite vitesse transmission contenance viscosite norme",
-            f"{car_info_alt} transmission fluid capacity viscosity specification",
-            f"{engine} gearbox oil capacity litres type specification",
+            f"{car_gb} boite de vitesses huile preconisation specification",
+            f"{car_gb_alt} transmission gearbox fluid specification recommendation",
+            f"{gearbox_code}{engine_part} boite de vitesses huile recommandee capacite".strip(),
         ]
+
+
 
     # 2. Oil Filter
     elif any(k in fluid_lower for k in ["filtre", "filter"]):
+
+        if engine:
+             _car_parts.append(engine)
+
+        car_info_f = f"{base} {engine}".strip()
+        car_info_f_alt = f"{base_alt} {engine}".strip()
         queries = [
-            f"{car_info} filtre a huile reference OEM catalog",
-            f"{car_info_alt} oil filter OEM part number reference",
+            f"{car_info_f} filtre a huile reference OEM catalog",
+            f"{car_info_f_alt} oil filter OEM part number reference",
             f"{engine} oil filter reference OEM number",
         ]
 
     # 3. Engine Oil
     elif any(k in fluid_lower for k in ["moteur", "engine"]):
+
+        if engine:
+                     _car_parts.append(engine)
+        car_info = f"{base} {engine}".strip()
+        car_info_alt = f"{base_alt} {engine}".strip()
         if is_diesel and year >= 2009:
             queries = [
                 f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
@@ -259,12 +364,16 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
 
     # 4. Fallback
     else:
+        if engine:
+                     _car_parts.append(engine)
         queries = [
-            f"{car_info} {fluid_type} specs",
-            f"{car_info_alt} {fluid_type} specification",
+            f"{base} {fluid_type} specs",
+            f"{base_alt} {fluid_type} specification",
             f"{engine} {fluid_type} capacity viscosity specification",
         ]
 
+
+    car_info = " ".join(str(p) for p in _car_parts if p).strip()
     raw_results = []
     seen_urls = set()
 
@@ -314,11 +423,11 @@ def ddgs_Search(brand: str, model: str, year: int, engine: str, mileage: int, fl
             sources_count+=1 
             if len(full_content) > 150:
                 try: 
-                    clean_content = extract_specs_from_text(full_content, car_info)
+                    clean_content = extract_specs_from_text(full_content, car_info,fluid_type)
                 except Exception as e:
                     clean_content = full_content
                     print(f"Error in extractor Model : {e}")    
-                    
+
             else:
                 clean_content = full_content
 
