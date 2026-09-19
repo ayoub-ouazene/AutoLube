@@ -1,27 +1,26 @@
+from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent
+
+from langchain_core.messages import HumanMessage
 import os 
 from pathlib import Path
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain.agents import create_agent
-from agent.tools import ddgs_Search
-from langchain_core.messages import HumanMessage
-from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
+from agent.search_agent.agent import Use_Search_Agent
 
-
-# Load environment
 load_dotenv(Path(__file__).parent / ".env")
-apikey = os.getenv("GROQ_API_KEY")
-
-# Initialize LLM
-model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey ,  temperature=0.0 , )
+apikey2 = os.getenv("GROQ_API_KEY2")
 
 
-agent = create_agent(
-    model=model,
-    tools=[ddgs_Search],  
+main_model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey2 ,  temperature=0.0 , )
+main_agent = create_agent(
+    model=main_model,
+    tools=[Use_Search_Agent],
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-    
 )
+
+
+
 
 def run_chat_session():
     # Store message history for multi-turn conversation
@@ -39,7 +38,7 @@ def run_chat_session():
         chat_history.append(HumanMessage(content=user_input))
 
         # Invoke agent with full conversation history
-        response = agent.invoke({"messages": chat_history})
+        response = main_agent.invoke({"messages": chat_history})
 
         # Update chat history with agent's response/tool outputs
         chat_history = response["messages"]

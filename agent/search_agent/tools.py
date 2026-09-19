@@ -13,8 +13,11 @@ import re
 from urllib.parse import urlparse
 import time 
 
-load_dotenv(Path(__file__).parent / ".env")
+from schema import SearchInput
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
+
 groq_apikey = os.getenv("GROQ_API_KEY")
 
 
@@ -25,7 +28,7 @@ extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temper
 
 TRUSTED_DOMAINS = [
    "castrol.com", "liqui-moly.com", "motul.com", 
-    "totalenergies.com", "fuchs.com", "kroon-oil.com", "oilspecifications.org"
+    "totalenergies.com", "auto-abc.eu", "kroon-oil.com", "oilspecifications.org"
 ]
 
 #################################################################################
@@ -149,43 +152,6 @@ def fetch_full_page_content(url: str) -> str:
         pass
     return ""
 
-class SearchInput(BaseModel):
-    brand: str = Field(description="Car brand, e.g., Renault, Dacia, Volkswagen")
-    model: str = Field(description="Car model, e.g., Duster, Golf, Symbol")
-    year: int = Field(description="Production year as integer, e.g., 2018")
-
-    engine: str = Field(
-        default="",
-        description=(
-            "Engine code or displacement. "
-            "REQUIRED for Engine Oil and Oil Filter (e.g., '1.5 dCi 90', 'EP6FDT 156 THP'). "
-            "OPTIONAL for Gearbox Oil — provide only if the user mentioned it, as extra context "
-            "that helps disambiguate variants. Never put the gearbox code in this field."
-        )
-    )
-
-    gearbox_ref: str = Field(
-        default="",
-        description=(
-            "Gearbox reference / ccode ONLY — REQUIRED for Gearbox Oil. "
-            "Examples: 'MQ250', 'TL4', 'MA5', 'DQ250', '02Q'. "
-            "Do NOT include the transmission type here — that goes in transmission_type."
-            "Leave empty otherwise."
-        )
-    )
-
-    transmission_type: str = Field(
-        default="",
-        description=(
-            "Transmission type — REQUIRED for Gearbox Oil. "
-            "One of: 'Manual', 'Automatic', 'DSG/DCT', 'CVT'. "
-            "Leave empty otherwise."
-        )
-    )
-
-    mileage: int = Field(description="Current vehicle mileage in km, e.g., 180000")
-    fluid_type: str = Field(description="Fluid type: Engine Oil, Gearbox Oil, or Oil Filter")
-
 
 BLOCKED_BASE_DOMAINS = {
     "amazon", "ebay", "aliexpress", "cdiscount", "walmart",
@@ -266,6 +232,12 @@ def is_data_sufficient(text: str, fluid_type: str) -> bool:
 
     # 6. Engine Oil (default): capacity AND (viscosity OR spec keyword)
     return has_capacity and (has_viscosity or has_spec_keyword)
+
+
+
+
+@tool(args_schema=SearchInput)
+def tavily_Search():
 
 
 
@@ -435,7 +407,7 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
                 f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
             )
 
-        if is_data_sufficient("\n\n".join(scraped_data)  , fluid_type) or sources_count >= 5:
+        if sources_count >= 5:
             break
 
     # Snippet Fallback if deep scraping fails
@@ -450,17 +422,5 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
 
     else:
         output_text = "\n\n".join(scraped_data)
-
-    # Final Check: If DDGS output lacks technical depth, trigger Tavily
-    if not is_data_sufficient(output_text , fluid_type):
-        print("\n[DDGS data insufficient. Fetching Tavily to supplement results...]")
-        tavily_text = execute_tavily_fallback(queries[0], car_info)
-        
-        return (
-            f"=== PRIMARY SOURCE DATA (DDGS - Partial) ===\n"
-            f"{output_text}\n\n"
-            f"=== SECONDARY SOURCE DATA (Tavily - Supplemental) ===\n"
-            f"{tavily_text}"
-        )
 
     return output_text
