@@ -236,10 +236,6 @@ def is_data_sufficient(text: str, fluid_type: str) -> bool:
 
 
 
-@tool(args_schema=SearchInput)
-def tavily_Search():
-
-
 
 @tool(args_schema=SearchInput)
 def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: str , engine: str = "", gearbox_ref: str = "", transmission_type: str = "",) -> str:
