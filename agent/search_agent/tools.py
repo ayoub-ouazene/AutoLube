@@ -13,7 +13,7 @@ import re
 from urllib.parse import urlparse
 import time 
 
-from schema import SearchInput
+from schema import SearchInput 
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
@@ -34,44 +34,40 @@ TRUSTED_DOMAINS = [
 #################################################################################
 
 
-def execute_tavily_fallback(query: str, car_info: str) -> str:
-    """Executes Tavily search using the official Python SDK."""
-    print(f"\n[Tavily Fallback Triggered]: {query}")
+def execute_tavily_fallback(car_info: str, query_seed: str) -> str:
+    """Internal helper. Runs Tavily (trusted → open web), returns formatted text
+    or a TAVILY_ERROR / TAVILY_NO_RESULTS marker."""
     try:
-        # 1. Search restricted to trusted lubricant databases
         response = tavily_client.search(
-            query=query,
+            query=query_seed,
             max_results=4,
             search_depth="basic",
-            include_domains=TRUSTED_DOMAINS
+            include_domains=TRUSTED_DOMAINS,
         )
         results = response.get("results", [])
         print(f"[Tavily] Trusted domains returned {len(results)} results.")
 
-        # 2. If restricted domains return nothing, try open web search
         if not results:
             print("[Tavily] No trusted domain results. Querying open web...")
             response = tavily_client.search(
                 query=f"{car_info} technical specs oil capacity OEM standard",
                 max_results=4,
                 search_depth="basic",
-                exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"]
+                exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"],
             )
             results = response.get("results", [])
             print(f"[Tavily] Open web returned {len(results)} results.")
 
         if not results:
-            return "No technical data found via primary or secondary search."
+            return "TAVILY_NO_RESULTS"
 
         formatted = []
         for i, r in enumerate(results, 1):
             formatted.append(f"Source {i} ({r.get('title')} - {r.get('url')}):\n{r.get('content')}")
-
         return "\n\n".join(formatted)
-
     except Exception as e:
         print(f"❌ [Tavily Error Caught]: {e}")
-        return f"Secondary search error: {str(e)}"
+        return f"TAVILY_ERROR: {e}"
 
 
 
@@ -185,56 +181,43 @@ def sanitize_search_results(results: list[dict]) -> list[dict]:
     return sanitized
 
 
+@tool(args_schema=SearchInput)
+def tavily_Search(
+    brand: str,
+    model: str,
+    year: int,
+    mileage: int,
+    fluid_type: str,
+    engine: str = "",
+    gearbox_ref: str = "",
+    transmission_type: str = "",
+) -> str:
+    """Fallback search tool. Use ONLY when ddgs_Search returned an error marker
+    (DDGS_ERROR / DDGS_NO_RESULTS / DDGS_NO_CONTENT) OR when one or more of the
+    target values required for the requested fluid_type are missing from the
+    ddgs_Search output. The required targets depend on the fluid:
+      - Engine Oil  : OEM specification, capacity in liters, viscosity grade.
+      - Gearbox Oil : OEM fluid reference, capacity in liters, viscosity grade.
+      - Oil Filter  : OEM part number (or a documented aftermarket reference).
+    Call at most once per invocation. Both tool outputs remain in context and
+    must be merged, with Tavily's values taking precedence on conflicts."""
 
+    base = f"{brand} {model} {year}".strip()
+    identifier = (gearbox_ref or engine).strip()
+    car_info = f"{base} {identifier}".strip()
 
-import re
-
-
-def is_data_sufficient(text: str, fluid_type: str) -> bool:
-    """
-    Car-agnostic check to verify if scraped text contains enough technical data
-    for the requested fluid type.
-    """
-    if not text or len(text.strip()) < 150:
-        return False
-
-    text_lower = text.lower()
     fluid_lower = fluid_type.lower()
+    if any(k in fluid_lower for k in ["boite", "boîte", "gearbox", "transmission"]):
+        query_seed = f"{car_info} boite de vitesses {transmission_type} huile preconisation specification"
+    elif any(k in fluid_lower for k in ["filtre", "filter"]):
+        query_seed = f"{car_info} filtre a huile reference OEM catalog"
+    else:
+        query_seed = f"{car_info} contenance carter huile norme OEM"
 
-    is_filter  = any(k in fluid_lower for k in ("filtre", "filter"))
-    is_gearbox = any(k in fluid_lower for k in ("boite", "boîte", "gearbox", "transmission"))
+    result = execute_tavily_fallback(car_info, query_seed)
+    print(f"tavily results : {result}")
 
-    # 1. Universal Capacity Pattern
-    capacity_pattern = r'(\b\d+[\.,]?\d*\s*(l|litre|litres|liter|liters|qt|quarts)\b|\b(contenance|carter|capacity|sump)\b.*?\b\d+[\.,]?\d*\b)'
-    has_capacity = bool(re.search(capacity_pattern, text_lower))
-
-    # 2. Universal Viscosity Pattern (engine + gear grades)
-    viscosity_pattern = r'\b(0|5|10|15|20|70|75|80|85)w[-_]?(16|20|30|40|50|60|80|90|110|140)\b'
-    has_viscosity = bool(re.search(viscosity_pattern, text_lower))
-
-    # 3. Universal Spec Keywords (fluid-agnostic)
-    spec_keywords = [
-        r'\bacea\b', r'\bapi\b', r'\bilsac\b', r'\bsae\b', r'\bjaso\b',
-        r'\bgl[- ]?[45]\b', r'\batf\b', r'\bmtf\b', r'\bcvt\b', r'\bdsg\b',
-        r'\bdexron\b', r'\bmercon\b',
-        r'\b(norme|norm|specification|spec|approval|homologation|oem|standard|reference|part number)\b'
-    ]
-    has_spec_keyword = any(re.search(p, text_lower) for p in spec_keywords)
-
-    # 4. Oil Filter: no capacity/viscosity — look for a part reference
-    if is_filter:
-        filter_pattern = r'\b(oc|op|ph|hu|wl|w)\s?-?\d{2,5}\b|\b\d{6,}[a-z0-9]{0,4}\b'
-        return bool(re.search(filter_pattern, text_lower))
-
-    # 5. Gearbox Oil: capacity OR gear viscosity, AND a spec keyword
-    if is_gearbox:
-        return (has_capacity or has_viscosity) and has_spec_keyword
-
-    # 6. Engine Oil (default): capacity AND (viscosity OR spec keyword)
-    return has_capacity and (has_viscosity or has_spec_keyword)
-
-
-
+    return result 
 
 
 @tool(args_schema=SearchInput)
@@ -250,7 +233,7 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
 
     # For gearbox queries: prefer dedicated gearbox_ref, fall back to engine for legacy calls
     trans_label = transmission_type.strip()
-    gearbox_code = f"{gearbox_ref or engine} {trans_label}".strip()
+    gearbox_code = f"{gearbox_ref or engine}".strip()
     
     
     fluid_lower = fluid_type.lower()
@@ -286,12 +269,12 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
             parts_alt.append(trans_label)
     
         car_gb_alt = " ".join(parts_alt).strip()
-        engine_part = f" {engine}" if engine else ""
+        engine_part = f"{engine}" if engine else ""
 
         queries = [
             f"{car_gb} boite de vitesses huile preconisation specification",
             f"{car_gb_alt} transmission gearbox fluid specification recommendation",
-            f"{gearbox_code}{engine_part} boite de vitesses huile recommandee capacite".strip(),
+            f"{gearbox_code} {engine_part} boite {trans_label} de vitesses huile recommandee capacite".strip(),
         ]
 
 

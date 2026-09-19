@@ -27,7 +27,17 @@ def run_chat_session():
     chat_history = []
     
     print("--- AutoLube AI Assistant Initialized ---")
+    print(
+        "Bonjour ! Je suis l'assistant AutoLube. Je peux vous aider avec :\n"
+        "  • l'huile moteur\n"
+        "  • l'huile de boîte (transmission)\n"
+        "  • le filtre à huile\n"
+        "  • le liquide de frein\n\n"
+        "Pour commencer, indiquez-moi le véhicule (marque, modèle, année, "
+        "code moteur ou boîte) et le type de fluide souhaité.\n"
+    )
     print("Type 'exit' to quit.\n")
+    
 
     while True:
         user_input = input("Customer: ")

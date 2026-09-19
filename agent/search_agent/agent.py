@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
-from agent.search_agent.tools import ddgs_Search
+from agent.search_agent.tools import ddgs_Search , tavily_Search
 from langchain_core.messages import HumanMessage
 from agent.prompts import SEARCH_AGENT_SYSTEM_PROMPT
 from langchain.tools import tool
@@ -21,7 +21,7 @@ model= ChatGroq(model="openai/gpt-oss-120b", api_key=apikey ,  temperature=0.0 ,
 
 search_agent = create_agent(
     model=model,
-    tools=[ddgs_Search],  
+    tools=[ddgs_Search , tavily_Search],  
     system_prompt=SEARCH_AGENT_SYSTEM_PROMPT,
 )
 
