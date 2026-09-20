@@ -26,48 +26,69 @@ tavily_client = TavilyClient(api_key=apikey)
 
 extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temperature=0.0)
 
-TRUSTED_DOMAINS = [
-   "castrol.com", "liqui-moly.com", "motul.com", 
-    "totalenergies.com", "auto-abc.eu", "kroon-oil.com", "oilspecifications.org"
+TRUSTED_DOMAINS_COMMON = [
+    "castrol.com", "liqui-moly.com", "motul.com",
+    "totalenergies.com", "auto-abc.eu", "kroon-oil.com",
+    "oilspecifications.org", "fuchs.com",
 ]
 
+TRUSTED_DOMAINS_ENGINE_OIL = TRUSTED_DOMAINS_COMMON
+
+TRUSTED_DOMAINS_GEARBOX = TRUSTED_DOMAINS_COMMON
+
+TRUSTED_DOMAINS_FILTER = [
+    "mann-filter.com", "purflux.com", "bosch.com",
+    "filtron.eu", "knecht-filter.com", "ufi-filters.com",
+    "hengst.com", "sogefi.com",
+    "oscaro.com", "autodoc.fr", "mister-auto.com",
+    "piecesauto24.com", "motointegrator.com", "auto-doc.fr",
+]
 #################################################################################
 
 
-def execute_tavily_fallback(car_info: str, query_seed: str) -> str:
+def execute_tavily_fallback(car_info: str, query_seed: str , trusted_domains: list) -> str:
     """Internal helper. Runs Tavily (trusted → open web), returns formatted text
     or a TAVILY_ERROR / TAVILY_NO_RESULTS marker."""
-    try:
-        response = tavily_client.search(
-            query=query_seed,
-            max_results=4,
-            search_depth="basic",
-            include_domains=TRUSTED_DOMAINS,
-        )
-        results = response.get("results", [])
-        print(f"[Tavily] Trusted domains returned {len(results)} results.")
 
-        if not results:
-            print("[Tavily] No trusted domain results. Querying open web...")
+    for attempt in (1, 2):
+        try:
             response = tavily_client.search(
-                query=f"{car_info} technical specs oil capacity OEM standard",
+                query=query_seed,
                 max_results=4,
                 search_depth="basic",
-                exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"],
+                include_domains = trusted_domains ,
             )
             results = response.get("results", [])
-            print(f"[Tavily] Open web returned {len(results)} results.")
+            print(f"[Tavily] Trusted domains returned {len(results)} results.")
 
-        if not results:
-            return "TAVILY_NO_RESULTS"
+            if not results:
+                print("[Tavily] No trusted domain results. Querying open web...")
+                response = tavily_client.search(
+                    query=f"{car_info} technical specs oil capacity OEM standard",
+                    max_results=4,
+                    search_depth="basic",
+                    exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"],
+                )
+                results = response.get("results", [])
+                print(f"[Tavily] Open web returned {len(results)} results.")
 
-        formatted = []
-        for i, r in enumerate(results, 1):
-            formatted.append(f"Source {i} ({r.get('title')} - {r.get('url')}):\n{r.get('content')}")
-        return "\n\n".join(formatted)
-    except Exception as e:
-        print(f"❌ [Tavily Error Caught]: {e}")
-        return f"TAVILY_ERROR: {e}"
+            if not results:
+                return "TAVILY_NO_RESULTS"
+
+            formatted = []
+            for i, r in enumerate(results, 1):
+                formatted.append(f"Source {i} ({r.get('title')} - {r.get('url')}):\n{r.get('content')}")
+
+
+            formatted_text = "\n\n".join(formatted)
+            return _sanitize_text_sources(formatted_text)
+        
+        except Exception as e:
+            print(f"❌ [Tavily Error Caught]: {e}")
+
+            if attempt == 2 :
+                return f"TAVILY_ERROR: {e}"
+            time.sleep(2)
 
 
 
@@ -181,6 +202,22 @@ def sanitize_search_results(results: list[dict]) -> list[dict]:
     return sanitized
 
 
+def _sanitize_text_sources(text: str) -> str:
+    """Strip Source blocks pointing at blacklisted domains from a formatted
+    Tavily response."""
+    blocks = re.split(r"\n\n(?=Source \d+)", text)
+    kept = []
+    for b in blocks:
+        m = re.search(r"-\s*(https?://\S+)", b)
+        if not m:
+            continue
+        if is_domain_blocked(m.group(1)):
+            continue
+        kept.append(b)
+    return "\n\n".join(kept) if kept else "TAVILY_NO_RESULTS"
+
+
+
 @tool(args_schema=SearchInput)
 def tavily_Search(
     brand: str,
@@ -209,12 +246,16 @@ def tavily_Search(
     fluid_lower = fluid_type.lower()
     if any(k in fluid_lower for k in ["boite", "boîte", "gearbox", "transmission"]):
         query_seed = f"{car_info} boite de vitesses {transmission_type} huile preconisation specification"
+        domains = TRUSTED_DOMAINS_GEARBOX
+
     elif any(k in fluid_lower for k in ["filtre", "filter"]):
         query_seed = f"{car_info} filtre a huile reference OEM catalog"
+        domains = TRUSTED_DOMAINS_FILTER
     else:
         query_seed = f"{car_info} contenance carter huile norme OEM"
+        domains = TRUSTED_DOMAINS_ENGINE_OIL
 
-    result = execute_tavily_fallback(car_info, query_seed)
+    result = execute_tavily_fallback(car_info, query_seed , domains)
     print(f"tavily results : {result}")
 
     return result 
@@ -288,9 +329,9 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
         car_info_f = f"{base} {engine}".strip()
         car_info_f_alt = f"{base_alt} {engine}".strip()
         queries = [
-            f"{car_info_f} filtre a huile reference OEM catalog",
-            f"{car_info_f_alt} oil filter OEM part number reference",
-            f"{engine} oil filter reference OEM number",
+            f"{car_info_f} filtre a huile reference preconisation",
+            f"{car_info_f_alt} oil filter part number cross reference",
+            f"{car_info_f} filtre huile reference MANN Purflux",
         ]
 
     # 3. Engine Oil
