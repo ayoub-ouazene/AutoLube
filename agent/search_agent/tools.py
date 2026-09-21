@@ -13,7 +13,7 @@ import re
 from urllib.parse import urlparse
 import time 
 
-from schema import SearchInput 
+from models.Input_schema import SearchInput 
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
@@ -331,7 +331,7 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
         queries = [
             f"{car_info_f} filtre a huile reference preconisation",
             f"{car_info_f_alt} oil filter part number cross reference",
-            f"{car_info_f} filtre huile reference MANN Purflux",
+            f"{engine} filtre a huile equivalence marque" ,
         ]
 
     # 3. Engine Oil
@@ -343,8 +343,8 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
         car_info_alt = f"{base_alt} {engine}".strip()
         if is_diesel and year >= 2009:
             queries = [
-                f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
-                f"{car_info_alt} engine oil capacity viscosity specification DPF",
+                f"{car_info} contenance carter huile norme OEM",
+                f"{car_info_alt} engine oil capacity viscosity specification ",
                 f"{engine} engine oil capacity viscosity litres specification",
             ]
         else:

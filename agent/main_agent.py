@@ -1,31 +1,31 @@
 from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
-
+from  agent.db_tools.stock_lookup import StockLookUp
 from langchain_core.messages import HumanMessage , SystemMessage
 import os 
 from pathlib import Path
 from dotenv import load_dotenv
-from agent.search_agent.agent import Use_Search_Agent
+from agent.search_agent.agent import use_search_agent
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env")
 apikey2 = os.getenv("GROQ_API_KEY2")
 
 
 main_model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey2 ,  temperature=0.0 , )
 main_agent = create_agent(
     model=main_model,
-    tools=[Use_Search_Agent],
+    tools=[use_search_agent, StockLookUp],
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
 )
 
 MAX_HISTORY = 8   
 
 def extract_vehicle_from_tool_call(response_messages):
-    """Scan the turn's messages for a Use_Search_Agent call, return its args dict."""
+    """Scan the turn's messages for a use_search_agent call, return its args dict."""
     for msg in reversed(response_messages):
         for call in getattr(msg, "tool_calls", None) or []:
-            if call["name"] == "Use_Search_Agent":
+            if call["name"] == "use_search_agent":
                 return call["args"]
     return None
 

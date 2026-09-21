@@ -8,10 +8,10 @@ from agent.search_agent.tools import ddgs_Search , tavily_Search
 from langchain_core.messages import HumanMessage
 from agent.prompts import SEARCH_AGENT_SYSTEM_PROMPT
 from langchain.tools import tool
-from schema import SearchInput
+from models.Input_schema import SearchInput
 
 # Load environment
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 apikey = os.getenv("GROQ_API_KEY")
 
@@ -26,8 +26,8 @@ search_agent = create_agent(
 )
 
 
-@tool(args_schema=SearchInput)
-def Use_Search_Agent( brand: str,model: str, year: int, mileage: int,fluid_type: str, engine: str = "", gearbox_ref: str = "",transmission_type: str = "",) -> dict:
+@tool("use_search_agent", args_schema=SearchInput)
+def use_search_agent( brand: str,model: str, year: int, mileage: int,fluid_type: str, engine: str = "", gearbox_ref: str = "",transmission_type: str = "",) -> dict:
     
     """
         Search and reason over automotive technical specifications.

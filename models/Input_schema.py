@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 
 
+
+
 class SearchInput(BaseModel):
     brand: str = Field(description="Car brand, e.g., Renault, Dacia, Volkswagen")
     model: str = Field(description="Car model, e.g., Duster, Golf, Symbol")
@@ -37,4 +39,23 @@ class SearchInput(BaseModel):
 
     mileage: int = Field(description="Current vehicle mileage in km, e.g., 180000")
     fluid_type: str = Field(description="Fluid type: Engine Oil, Gearbox Oil, or Oil Filter")
+
+
+class StockLookupInput(BaseModel):
+    fluid_type: str = Field(
+        description="One of: 'Engine Oil', 'Gearbox Oil', 'Oil Filter'."
+    )
+    oem_specification: str = Field(
+        default="",
+        description=(
+            "Engine Oil: OEM spec, e.g. 'VW 507.00' or 'RN0720'. "
+            "Gearbox Oil: OEM fluid reference, e.g. 'VW G 052 171 A2' or 'Renault NFJ'. "
+            "Oil Filter: part reference, e.g. 'Purflux LS946' or '03N115562B'."
+        ),
+    )
+    viscosity: str = Field(
+        default="",
+        description="Viscosity grade, e.g. '5W-30', '75W-80'. Not applicable to filters.",
+    )
+
 

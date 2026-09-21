@@ -18,3 +18,8 @@ requests
 # Configuration and schemas
 python-dotenv
 pydantic
+
+
+#db
+sqlalchemy 
+psycopg[binary]
