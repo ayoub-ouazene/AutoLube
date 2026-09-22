@@ -1,21 +1,21 @@
 from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
-from  agent.db_tools.stock_lookup import StockLookUp
-from langchain_core.messages import HumanMessage , SystemMessage
+from  agent.db_tools.stock_lookup import stock_lookup
+from langchain_core.messages import HumanMessage , SystemMessage  , AIMessage
 import os 
 from pathlib import Path
 from dotenv import load_dotenv
 from agent.search_agent.agent import use_search_agent
 
 load_dotenv(Path(__file__).parent.parent / ".env")
-apikey2 = os.getenv("GROQ_API_KEY2")
+apikey2 = os.getenv("GROQ_API_KEY")
 
 
 main_model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey2 ,  temperature=0.0 , )
 main_agent = create_agent(
     model=main_model,
-    tools=[use_search_agent, StockLookUp],
+    tools=[use_search_agent, stock_lookup],
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
 )
 
@@ -47,6 +47,18 @@ def update_vehicle_state(current_vehicle, new_args):
         if v not in ("", 0, None):
             merged[k] = v
     return merged
+
+
+def _trim_history(history):
+    """Keep only HumanMessage and final AIMessage (no tool calls).
+    Drops every ToolMessage and every AIMessage that carries tool_calls."""
+    kept = []
+    for m in history:
+        if isinstance(m, HumanMessage):
+            kept.append(m)
+        elif isinstance(m, AIMessage) and not getattr(m, "tool_calls", None):
+            kept.append(m)
+    return kept
 
 
 def run_chat_session():
@@ -96,7 +108,7 @@ def run_chat_session():
         # Keep only the AI's final reply in history — drop tool-call plumbing
         ai_reply = response_messages[-1]
         chat_history.append(ai_reply)
-        chat_history = chat_history[-MAX_HISTORY:]
+        chat_history = _trim_history(chat_history[-MAX_HISTORY:])
 
         # Print the reply
         last_response = ai_reply.content

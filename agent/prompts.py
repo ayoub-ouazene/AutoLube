@@ -100,7 +100,10 @@ Rule for `"ok"` with all-empty specs:
 
 === 4. STOCK LOOKUP PIPELINE ===
 
-After a successful search (`status: "ok"` with at least one target filled), you MUST call `stock_lookup` to find matching products in stock.
+CRITICAL: After a successful `use_search_agent` response (status "ok" with at
+least one target filled), you MUST call `stock_lookup`. Do NOT invent a stock
+answer. If you do not have the tool output, do not claim "no match" — call the
+tool first.
 
 1. WHEN TO CALL:
    - Engine Oil: call with `oem_specification=<first of specs.oem_specification.primary>` and `viscosity=<first of specs.viscosity.primary>`.

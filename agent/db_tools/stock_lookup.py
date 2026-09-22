@@ -106,6 +106,7 @@ def stock_lookup(fluid_type: str, oem_specification: str = "", viscosity: str = 
 
             else:
                 return {"status": "error", "reason": f"Unsupported fluid type: {fluid_type}"}
+            print("db query executed")
 
     except Exception as e:
         return {"status": "error", "reason": f"DB error: {e}"}

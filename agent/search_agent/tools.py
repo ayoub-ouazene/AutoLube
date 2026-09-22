@@ -13,6 +13,7 @@ import re
 from urllib.parse import urlparse
 import time 
 
+
 from models.Input_schema import SearchInput 
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -26,6 +27,7 @@ tavily_client = TavilyClient(api_key=apikey)
 
 extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temperature=0.0)
 
+
 TRUSTED_DOMAINS_COMMON = [
     "castrol.com", "liqui-moly.com", "motul.com",
     "totalenergies.com", "auto-abc.eu", "kroon-oil.com",
@@ -36,13 +38,7 @@ TRUSTED_DOMAINS_ENGINE_OIL = TRUSTED_DOMAINS_COMMON
 
 TRUSTED_DOMAINS_GEARBOX = TRUSTED_DOMAINS_COMMON
 
-TRUSTED_DOMAINS_FILTER = [
-    "mann-filter.com", "purflux.com", "bosch.com",
-    "filtron.eu", "knecht-filter.com", "ufi-filters.com",
-    "hengst.com", "sogefi.com",
-    "oscaro.com", "autodoc.fr", "mister-auto.com",
-    "piecesauto24.com", "motointegrator.com", "auto-doc.fr",
-]
+
 #################################################################################
 
 
@@ -55,8 +51,9 @@ def execute_tavily_fallback(car_info: str, query_seed: str , trusted_domains: li
             response = tavily_client.search(
                 query=query_seed,
                 max_results=4,
-                search_depth="basic",
+                search_depth="advanced",
                 include_domains = trusted_domains ,
+                
             )
             results = response.get("results", [])
             print(f"[Tavily] Trusted domains returned {len(results)} results.")
@@ -65,8 +62,8 @@ def execute_tavily_fallback(car_info: str, query_seed: str , trusted_domains: li
                 print("[Tavily] No trusted domain results. Querying open web...")
                 response = tavily_client.search(
                     query=f"{car_info} technical specs oil capacity OEM standard",
-                    max_results=4,
-                    search_depth="basic",
+                    max_results=5,
+                    search_depth="advanced",
                     exclude_domains=["amazon.com", "ebay.com", "facebook.com", "youtube.com"],
                 )
                 results = response.get("results", [])
@@ -103,13 +100,6 @@ def extract_specs_from_text(raw_text: str, car_info: str, fluid_type: str) -> st
         3. API / ACEA / OEM class (e.g., API GL-4, GL-4+, GL-5, Dexron, Mercon, MTF).
         4. Sump capacity in Liters (with/without filter).
         5. Critical warnings (GL-5 vs yellow metals / synchronizers, ATF vs MTF distinction, manual vs automatic).
-        """
-    elif any(k in fluid_lower for k in ("filtre", "filter")):
-        priority = """
-        1. Exact OE part number (e.g., 7700274177, 06A115561B, 8200768913).
-        2. Aftermarket reference (e.g., MANN W 712/95, Purflux LS924, Bosch F026407...).
-        3. Filter type (spin-on, cartridge, housing) and thread/height if listed.
-        4. Compatibility notes (engine code, year range, variant).
         """
     else:
         priority = """
@@ -235,7 +225,7 @@ def tavily_Search(
     ddgs_Search output. The required targets depend on the fluid:
       - Engine Oil  : OEM specification, capacity in liters, viscosity grade.
       - Gearbox Oil : OEM fluid reference, capacity in liters, viscosity grade.
-      - Oil Filter  : OEM part number (or a documented aftermarket reference).
+     
     Call at most once per invocation. Both tool outputs remain in context and
     must be merged, with Tavily's values taking precedence on conflicts."""
 
@@ -248,15 +238,12 @@ def tavily_Search(
         query_seed = f"{car_info} boite de vitesses {transmission_type} huile preconisation specification"
         domains = TRUSTED_DOMAINS_GEARBOX
 
-    elif any(k in fluid_lower for k in ["filtre", "filter"]):
-        query_seed = f"{car_info} filtre a huile reference OEM catalog"
-        domains = TRUSTED_DOMAINS_FILTER
     else:
         query_seed = f"{car_info} contenance carter huile norme OEM"
         domains = TRUSTED_DOMAINS_ENGINE_OIL
 
     result = execute_tavily_fallback(car_info, query_seed , domains)
-    print(f"tavily results : {result}")
+   
 
     return result 
 
@@ -318,21 +305,6 @@ def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: st
             f"{gearbox_code} {engine_part} boite {trans_label} de vitesses huile recommandee capacite".strip(),
         ]
 
-
-
-    # 2. Oil Filter
-    elif any(k in fluid_lower for k in ["filtre", "filter"]):
-
-        if engine:
-             _car_parts.append(engine)
-
-        car_info_f = f"{base} {engine}".strip()
-        car_info_f_alt = f"{base_alt} {engine}".strip()
-        queries = [
-            f"{car_info_f} filtre a huile reference preconisation",
-            f"{car_info_f_alt} oil filter part number cross reference",
-            f"{engine} filtre a huile equivalence marque" ,
-        ]
 
     # 3. Engine Oil
     elif any(k in fluid_lower for k in ["moteur", "engine"]):
