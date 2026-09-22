@@ -10,17 +10,16 @@ from agent.prompts import SEARCH_AGENT_SYSTEM_PROMPT
 from langchain.tools import tool
 from models.Input_schema import SearchInput
 
+from config.apis import main_groq_model , alternative_groq_model , openrouter_model
+
 # Load environment
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-apikey = os.getenv("GROQ_API_KEY")
 
-# Initialize LLM
-model= ChatGroq(model="openai/gpt-oss-120b", api_key=apikey ,  temperature=0.0 , )
 
 
 search_agent = create_agent(
-    model=model,
+    model=openrouter_model,
     tools=[ddgs_Search , tavily_Search],  
     system_prompt=SEARCH_AGENT_SYSTEM_PROMPT,
 )

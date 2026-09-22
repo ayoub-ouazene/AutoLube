@@ -59,3 +59,21 @@ class StockLookupInput(BaseModel):
     )
 
 
+class SpecsLookupInput(BaseModel):
+    fluid_type: str = Field(description="One of: 'Engine Oil', 'Gearbox Oil'.")
+    brand: str = Field(description="Car brand, e.g. 'Renault', 'Volkswagen'.")
+    model: str = Field(description="Car model, e.g. 'Clio IV', 'Golf VII'.")
+    year: int = Field(description="Production year, e.g. 2018.")
+    engine: str = Field(
+        default="",
+        description="Engine code/displacement. Required for Engine Oil. e.g. 'K9K 646', '1.5 dCi 110'.",
+    )
+    gearbox_ref: str = Field(
+        default="",
+        description="Gearbox reference. Required for Gearbox Oil. e.g. 'MQ250', 'TL4'.",
+    )
+    transmission_type: str = Field(
+        default="",
+        description="One of: 'Manual', 'Automatic', 'DSG/DCT', 'CVT'. Required for Gearbox Oil.",
+    )
+

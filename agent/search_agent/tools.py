@@ -13,20 +13,18 @@ import re
 from urllib.parse import urlparse
 import time 
 
+from config.apis import small_groq_model
 
 from models.Input_schema import SearchInput 
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
 
-groq_apikey = os.getenv("GROQ_API_KEY")
-
 
 
 tavily_client = TavilyClient(api_key=apikey)
 
-extractor_llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_apikey, temperature=0.0)
-
+extractor_llm = small_groq_model
 
 TRUSTED_DOMAINS_COMMON = [
     "castrol.com", "liqui-moly.com", "motul.com",

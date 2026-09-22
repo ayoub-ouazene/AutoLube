@@ -102,51 +102,38 @@ class Additional_Item(BaseDB):
 
 
 # these ones not for the stock , but kind of cache for the models and there exact target 
-
 class Oil_Engine_Cache(BaseDB):
-        __tablename__ = "oil_engine_cache"
-        __table_args__ = (
-         )
-        
-        id: Mapped[int] = mapped_column(primary_key=True)
-        brand: Mapped[str] = mapped_column(String(64), index=True)        # "Castrol"
-        model: Mapped[str] = mapped_column(Text, index=True)
+    __tablename__ = "oil_engine_cache"
 
-        start_year: Mapped[int] = mapped_column(Integer())
-        end_year: Mapped[int] = mapped_column(Integer())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    brand: Mapped[str] = mapped_column(String(64), index=True)
+    model: Mapped[str] = mapped_column(Text, index=True)
 
-        engine: Mapped[str] = mapped_column(Text, index=True)
+    start_year: Mapped[int] = mapped_column(Integer())
+    end_year: Mapped[int] = mapped_column(Integer())
 
-        Fuel_type: Mapped[str] = mapped_column(String(64), index=True)   #diesel or petrol 
+    engine: Mapped[str] = mapped_column(Text, index=True)     # single engine variant
+    fuel_type: Mapped[str] = mapped_column(String(64), index=True)
 
-        # Viscosity grade, lowercase, e.g. "5w-30", "75w-80"
-        viscosity: Mapped[str] = mapped_column(String(16), index=True, nullable=True)
-        
-        oem: Mapped[str] = mapped_column(Text, index=True)
-        api_acea: Mapped[str] = mapped_column(Text, index=True)
-
-
+    viscosity: Mapped[str] = mapped_column(String(16), index=True, nullable=True)
+    capacity_liters: Mapped[str] = mapped_column(String(16), nullable=True)
+    oem: Mapped[str] = mapped_column(Text, index=True)        # single spec
+    api_acea: Mapped[str] = mapped_column(Text, index=True)
 
 
 class Transmission_Oil_Cache(BaseDB):
-        __tablename__ = "transmission_oil_cache"
-        __table_args__ = (
-         )
-        
-        id: Mapped[int] = mapped_column(primary_key=True)
-        brand: Mapped[str] = mapped_column(String(64), index=True)        # "Castrol"
-        model: Mapped[str] = mapped_column(Text, index=True)
+    __tablename__ = "transmission_oil_cache"
 
-        start_year: Mapped[int] = mapped_column(Integer())
-        end_year: Mapped[int] = mapped_column(Integer())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    brand: Mapped[str] = mapped_column(String(64), index=True)
+    model: Mapped[str] = mapped_column(Text, index=True)
 
-        gearabox: Mapped[str] = mapped_column(Text, index=True)
+    start_year: Mapped[int] = mapped_column(Integer())
+    end_year: Mapped[int] = mapped_column(Integer())
 
-        transmission_type: Mapped[str] = mapped_column(String(64), index=True)   #diesel or petrol 
+    gearbox: Mapped[str] = mapped_column(Text, index=True)    # single gearbox ref
+    transmission_type: Mapped[str] = mapped_column(String(64), index=True)
 
-        # Viscosity grade, lowercase, e.g. "5w-30", "75w-80"
-        viscosity: Mapped[str] = mapped_column(String(16), index=True, nullable=True)
-        
-        oem: Mapped[str] = mapped_column(Text, index=True)
-        
-
+    viscosity: Mapped[str] = mapped_column(String(16), index=True, nullable=True)
+    capacity_liters: Mapped[str] = mapped_column(String(16), nullable=True)
+    oem: Mapped[str] = mapped_column(Text, index=True)

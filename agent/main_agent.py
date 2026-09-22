@@ -8,14 +8,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 from agent.search_agent.agent import use_search_agent
 
+from agent.db_tools.spec_lookup import specs_lookup
+from config.apis import main_groq_model , alternative_groq_model , openrouter_model
+
 load_dotenv(Path(__file__).parent.parent / ".env")
-apikey2 = os.getenv("GROQ_API_KEY")
 
 
-main_model = ChatGroq(model="openai/gpt-oss-120b", api_key=apikey2 ,  temperature=0.0 , )
 main_agent = create_agent(
-    model=main_model,
-    tools=[use_search_agent, stock_lookup],
+    model=openrouter_model,
+    tools=[use_search_agent, stock_lookup , specs_lookup],
     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
 )
 

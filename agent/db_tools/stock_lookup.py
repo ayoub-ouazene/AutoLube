@@ -37,6 +37,40 @@ def _ser_transmission(item: Oil_Transmission_Item) -> dict:
         "quantity": item.quantity,
     }
 
+import re
+
+
+def _spec_variants(spec: str) -> list[str]:
+    """Break a spec string into candidate patterns for matching against stock.
+
+    'BMW Longlife-04 (LL-04)'  ->  ['bmw longlife-04 (ll-04)', 'bmw longlife-04', 'll-04']
+    'VW 507.00'                ->  ['vw 507.00']
+    'RN0720, RN17'             ->  ['rn0720, rn17', 'rn0720', 'rn17']
+    """
+    if not spec:
+        return []
+    s = spec.strip().lower()
+    variants = [s]
+
+    # parenthetical parts as separate candidates
+    for p in re.findall(r"\(([^)]+)\)", s):
+        p = p.strip()
+        if p and p not in variants:
+            variants.append(p)
+
+    # the string without the parentheticals
+    without_parens = re.sub(r"\([^)]*\)", "", s).strip()
+    if without_parens and without_parens not in variants:
+        variants.append(without_parens)
+
+    # comma-split parts
+    for part in s.split(","):
+        p = part.strip()
+        if p and p not in variants:
+            variants.append(p)
+
+    # drop too-short tokens that would match everything
+    return [v for v in variants if len(v) >= 3]
 
 
 # ---------- queries ----------
@@ -45,12 +79,15 @@ def _query_engine_oil(session, spec: str, visc: str):
     stmt = select(Oil_Engine_Item).where(Oil_Engine_Item.quantity > 0)
 
     # Match OEM OR API/ACEA, since the search agent may hand us either
-    if spec:
-        s = spec.lower()
-        stmt = stmt.where(or_(
-            Oil_Engine_Item.oem.ilike(f"%{s}%"),
-            Oil_Engine_Item.api_acea.ilike(f"%{s}%"),
-        ))
+    
+    variants = _spec_variants(spec)
+    if variants:
+        or_clauses = []
+        for v in variants:
+            or_clauses.append(Oil_Engine_Item.oem.ilike(f"%{v}%"))
+            or_clauses.append(Oil_Engine_Item.api_acea.ilike(f"%{v}%"))
+        stmt = stmt.where(or_(*or_clauses))
+
     if visc:
         stmt = stmt.where(Oil_Engine_Item.viscosity == visc.lower())
 
@@ -60,17 +97,17 @@ def _query_engine_oil(session, spec: str, visc: str):
 def _query_gearbox_oil(session, spec: str, visc: str):
     stmt = select(Oil_Transmission_Item).where(Oil_Transmission_Item.quantity > 0)
 
-    # For gearbox we accept spec OR viscosity match (as before — either signal is enough)
+    variants = _spec_variants(spec)
     clauses = []
-    if spec:
-        clauses.append(Oil_Transmission_Item.oem.ilike(f"%{spec.lower()}%"))
+    for v in variants:
+        clauses.append(Oil_Transmission_Item.oem.ilike(f"%{v}%"))
     if visc:
         clauses.append(Oil_Transmission_Item.viscosity == visc.lower())
+
     if clauses:
         stmt = stmt.where(or_(*clauses))
 
     return session.scalars(stmt.order_by(Oil_Transmission_Item.price)).all()
-
 
 
 
@@ -106,7 +143,8 @@ def stock_lookup(fluid_type: str, oem_specification: str = "", viscosity: str = 
 
             else:
                 return {"status": "error", "reason": f"Unsupported fluid type: {fluid_type}"}
-            print("db query executed")
+            
+            print("db query executed for stock lookup")
 
     except Exception as e:
         return {"status": "error", "reason": f"DB error: {e}"}
