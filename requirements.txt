@@ -1,12 +1,13 @@
-# Core agent framework
+﻿# Core agent framework
 langchain
 langchain-core
 langgraph
 langgraph-checkpoint
 langgraph-checkpoint-sqlite
 
-# LLM provider
+# Model providers
 langchain-groq
+langchain-openai
 
 # Search providers and web extraction
 langchain-tavily
@@ -15,11 +16,11 @@ ddgs
 trafilatura
 requests
 
+# Database and migrations
+sqlalchemy
+psycopg[binary]
+alembic
+
 # Configuration and schemas
 python-dotenv
 pydantic
-
-
-#db
-sqlalchemy 
-psycopg[binary]

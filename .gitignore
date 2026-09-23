@@ -1,11 +1,15 @@
-# ============================================
+﻿# ============================================
 # Environment & Secrets
 # ============================================
 .env
 .env.*
 !.env.example
+!.env.template
+*.pem
 *.key
+*.crt
 secrets.json
+service-account*.json
 
 # ============================================
 # Python
@@ -31,6 +35,9 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.pyre/
+.mypy_cache/
+.ruff_cache/
 
 # ============================================
 # Virtual Environments
@@ -84,10 +91,16 @@ htmlcov/
 # Agent Data & Databases
 # ============================================
 *.db
+*.db-*
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
 chat_history.db
 checkpoints/
+*.dump
+*.backup
+*.bak
 
 # ============================================
 # Logs
