@@ -37,7 +37,6 @@ class SearchInput(BaseModel):
         )
     )
 
-    mileage: int = Field(description="Current vehicle mileage in km, e.g., 180000")
     fluid_type: str = Field(description="Fluid type: Engine Oil, Gearbox Oil, or Oil Filter")
 
 

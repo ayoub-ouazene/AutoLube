@@ -28,7 +28,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 _pool = load_keys_from_env()
 
 @tool("use_search_agent", args_schema=SearchInput)
-def use_search_agent( brand: str,model: str, year: int, mileage: int,fluid_type: str, engine: str = "", gearbox_ref: str = "",transmission_type: str = "",) -> dict:
+def use_search_agent( brand: str,model: str, year: int ,fluid_type: str, engine: str = "", gearbox_ref: str = "",transmission_type: str = "",) -> dict:
     
     """
         Search and reason over automotive technical specifications.
@@ -45,7 +45,6 @@ def use_search_agent( brand: str,model: str, year: int, mileage: int,fluid_type:
         f"- Engine: {engine or '(not provided)'}\n"
         f"- Gearbox reference: {gearbox_ref or '(not provided)'}\n"
         f"- Transmission type: {transmission_type or '(not provided)'}\n"
-        f"- Mileage: {mileage} km\n"
         f"- Fluid type: {fluid_type}\n"
     )
 

@@ -104,7 +104,7 @@ def extract_specs_from_text(raw_text: str, car_info: str, fluid_type: str) -> st
             1. Exact sump/carter capacity in Liters (with/without filter).
             2. Recommended viscosity grade (e.g., 0W-30, 5W-30, 5W-40).
             3. Official OEM specification (e.g., PSA B71 2312, VW 507.00, RN0700 / RN0720 / RN17, MB 229.51, dexos).
-            4. Critical warnings (wet-belt timing, DPF/FAP Low-SAPS requirement, high-mileage adjustment).
+            4. Critical warnings (wet-belt timing, DPF/FAP Low-SAPS requirement).
             """
 
     extraction_prompt = f"""You are a precise automotive technical data extractor.
@@ -211,7 +211,6 @@ def tavily_Search(
     brand: str,
     model: str,
     year: int,
-    mileage: int,
     fluid_type: str,
     engine: str = "",
     gearbox_ref: str = "",
@@ -247,7 +246,7 @@ def tavily_Search(
 
 
 @tool(args_schema=SearchInput)
-def ddgs_Search(brand: str, model: str, year: int,  mileage: int, fluid_type: str , engine: str = "", gearbox_ref: str = "", transmission_type: str = "",) -> str:
+def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: str = "", gearbox_ref: str = "", transmission_type: str = "",) -> str:
     """ Searches for technical automotive specifications, deep-scrapes the top sources,
         and returns a structured, noise-free summary of specs and warnings.
     """
