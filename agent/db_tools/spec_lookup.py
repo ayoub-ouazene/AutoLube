@@ -141,7 +141,7 @@ def specs_lookup(
                     return {"status": "not_found"}
                 
                 print("hit the cache")
-                print(f"the row of the db : {_ser_engine(row)}")
+                print(f"the row of the db : {_ser_transmission(row)}")
                 return {"status": "found", "specs": _ser_transmission(row)}
 
             return {"status": "error", "reason": f"Unsupported fluid type: {fluid_type}"}

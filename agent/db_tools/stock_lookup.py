@@ -11,6 +11,42 @@ from models.db import (
 from models.Input_schema import StockLookupInput
 
 
+OEM_ALIASES = {
+    # BMW
+    "bmw longlife-04": ["bmw ll-04", "ll-04", "ll04"],
+    "bmw longlife-01": ["bmw ll-01", "ll-01", "ll01"],
+    "bmw longlife-98": ["bmw ll-98", "ll-98"],
+
+    # VW / Audi / Škoda / Seat
+    "vw 504.00": ["vw 504 00", "504.00", "504 00"],
+    "vw 507.00": ["vw 507 00", "507.00", "507 00", "vw 507"],
+
+    # Mercedes
+    "mb 229.51": ["mb 229 51", "229.51", "229 51", "mercedes 229.51"],
+    "mb 229.52": ["mb 229 52", "229.52", "229 52"],
+    "mb 229.5":  ["mb 229 5", "229.5", "229 5"],
+
+    # Renault / Dacia
+    "renault rn0720": ["rn0720", "rn 0720"],
+    "renault rn0710": ["rn0710", "rn 0710"],
+    "renault rn0700": ["rn0700", "rn 0700"],
+    "renault rn17":   ["rn17", "rn 17"],
+
+    # PSA
+    "psa b71 2312": ["b71 2312", "psa b71 2312", "psa b712312"],
+    "psa b71 2290": ["b71 2290", "psa b71 2290", "psa b712290"],
+
+    # Ford
+    "ford wss-m2c913-c": ["wss-m2c913-c", "m2c913-c"],
+    "ford wss-m2c913-d": ["wss-m2c913-d", "m2c913-d"],
+
+    # GM / Opel
+    "dexos1":  ["dexos 1", "dexos-1"],
+    "dexos2":  ["dexos 2", "dexos-2"],
+}
+
+
+
 # ---------- serializers ----------
 
 def _ser_engine(item: Oil_Engine_Item) -> dict:
@@ -41,37 +77,35 @@ import re
 
 
 def _spec_variants(spec: str) -> list[str]:
-    """Break a spec string into candidate patterns for matching against stock.
-
-    'BMW Longlife-04 (LL-04)'  ->  ['bmw longlife-04 (ll-04)', 'bmw longlife-04', 'll-04']
-    'VW 507.00'                ->  ['vw 507.00']
-    'RN0720, RN17'             ->  ['rn0720, rn17', 'rn0720', 'rn17']
-    """
+    """Expand a spec string into all matchable forms, including synonyms."""
+    
     if not spec:
         return []
-    s = spec.strip().lower()
-    variants = [s]
 
-    # parenthetical parts as separate candidates
+    s = spec.strip().lower()
+    variants = {s}
+
+    # parentheticals and comma parts (existing behavior)
     for p in re.findall(r"\(([^)]+)\)", s):
         p = p.strip()
-        if p and p not in variants:
-            variants.append(p)
-
-    # the string without the parentheticals
+        if p:
+            variants.add(p)
     without_parens = re.sub(r"\([^)]*\)", "", s).strip()
-    if without_parens and without_parens not in variants:
-        variants.append(without_parens)
-
-    # comma-split parts
+    if without_parens:
+        variants.add(without_parens)
     for part in s.split(","):
         p = part.strip()
-        if p and p not in variants:
-            variants.append(p)
+        if p:
+            variants.add(p)
 
-    # drop too-short tokens that would match everything
+    # NEW: expand via alias map, in both directions
+    for canonical, aliases in OEM_ALIASES.items():
+        all_forms = {canonical, *aliases}
+        # if any form appears in the spec, add all forms as candidates
+        if any(form in s for form in all_forms):
+            variants.update(all_forms)
+
     return [v for v in variants if len(v) >= 3]
-
 
 # ---------- queries ----------
 
@@ -94,18 +128,17 @@ def _query_engine_oil(session, spec: str, visc: str):
     return session.scalars(stmt.order_by(Oil_Engine_Item.price)).all()
 
 
+
 def _query_gearbox_oil(session, spec: str, visc: str):
     stmt = select(Oil_Transmission_Item).where(Oil_Transmission_Item.quantity > 0)
 
     variants = _spec_variants(spec)
-    clauses = []
-    for v in variants:
-        clauses.append(Oil_Transmission_Item.oem.ilike(f"%{v}%"))
-    if visc:
-        clauses.append(Oil_Transmission_Item.viscosity == visc.lower())
+    if variants:
+        or_clauses = [Oil_Transmission_Item.oem.ilike(f"%{v}%") for v in variants]
+        stmt = stmt.where(or_(*or_clauses))
 
-    if clauses:
-        stmt = stmt.where(or_(*clauses))
+    if visc:
+        stmt = stmt.where(Oil_Transmission_Item.viscosity == visc.lower())
 
     return session.scalars(stmt.order_by(Oil_Transmission_Item.price)).all()
 

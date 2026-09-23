@@ -1,5 +1,7 @@
 from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
-from langchain_groq import ChatGroq
+
+from config.llm_pool import load_keys_from_env, run_with_failover
+
 from langchain.agents import create_agent
 from  agent.db_tools.stock_lookup import stock_lookup
 from langchain_core.messages import HumanMessage , SystemMessage  , AIMessage
@@ -9,16 +11,30 @@ from dotenv import load_dotenv
 from agent.search_agent.agent import use_search_agent
 
 from agent.db_tools.spec_lookup import specs_lookup
-from config.apis import main_groq_model , alternative_groq_model , openrouter_model
+from config.apis import main_groq_model , openrouter_model 
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+pool = load_keys_from_env()
 
-main_agent = create_agent(
-    model=openrouter_model,
-    tools=[use_search_agent, stock_lookup , specs_lookup],
-    system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-)
+# main_agent = create_agent(
+#     model=main_groq_model,
+#     tools=[use_search_agent, stock_lookup , specs_lookup],
+#     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
+# )
+
+
+TOOLS = [use_search_agent, stock_lookup , specs_lookup]
+
+def invoke_main_agent(messages):
+    def _run(model):
+        agent = create_agent(
+            model=model,
+            tools=TOOLS,
+            system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
+        )
+        return agent.invoke({"messages": messages})
+    return run_with_failover(pool, _run)
 
 MAX_HISTORY = 8   
 
@@ -99,12 +115,20 @@ def run_chat_session():
             ))
         payload.extend(chat_history[-MAX_HISTORY:])
 
-        response = main_agent.invoke({"messages": payload})
+        response = invoke_main_agent(payload)
         response_messages = response["messages"]
 
         # Update the persistent vehicle state from this turn's tool call (if any)
         new_args = extract_vehicle_from_tool_call(response_messages)
         current_vehicle = update_vehicle_state(current_vehicle, new_args)
+
+
+        # After main_agent.invoke, before reading the final reply
+        for msg in response["messages"]:
+            calls = getattr(msg, "tool_calls", None)
+            if calls:
+                print(f"[TOOL CALLS] {[c['name'] for c in calls]}")
+
 
         # Keep only the AI's final reply in history — drop tool-call plumbing
         ai_reply = response_messages[-1]

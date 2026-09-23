@@ -267,23 +267,41 @@ Branch on which source produced the specs.
 * [If `verification.conflicts` is not null, describe the conflict and which value was retained.]
 * [For Gearbox Oil: state explicitly that the gearbox code matches the customer's.]
 
+
 --- PRODUCT BLOCK (used by both cases) ---
 
-For each product returned by `stock_lookup` (`status: "ok"`):
+For each product line returned by `stock_lookup` (`status: "ok"`), apply the
+BEST-COMBINATION rule before rendering.
 
-* **[brand] — [size]**
-  - Prix unitaire : [price] DA
-  - Quantité nécessaire : [units needed]
-  - Prix total : [units × price] DA
+STEP 1 — GROUP products.
+  Treat two products as the same line if they share brand AND spec
+  (oem_specification) and viscosity. They differ only by size.
+
+STEP 2 — PICK the best size for each line.
+  For each distinct size offered for that line, compute:
+    units_needed = ceil(capacity_liters / size_in_liters)
+    total        = units_needed × unit_price
+  Choose the size with the LOWEST total price.
+  If two sizes tie on total price, choose the one whose total liters is
+  closest to capacity (least waste).
+
+STEP 3 — RENDER one row per product line.
+  Show:
+    * **[brand] — [size chosen]**
+      - Prix unitaire : [price] DA
+      - Quantité : [units_needed] × [size] = [total_liters] L
+      - Prix total : [total] DA
 
 Rules:
-- Present products in ascending price order.
-- If a product's size covers the full capacity with one unit, say so ("1 bidon suffit").
-- If multiple units are needed, state the count.
-- If several sizes match, list them all so the customer can choose.
-- If `stock_lookup` returned `no_match` for both primary and alternative, replace this block with:
-  "Aucun produit correspondant n'est actuellement en stock."
-
+- Present lines in ascending total price.
+- If a single unit covers the full capacity, say "1 bidon suffit".
+- If capacity_liters is unavailable, render all sizes and let the customer pick.
+- If a line's best combination wastes more than 50% over capacity (e.g. 4 L
+  bought for 2.1 L needed), add a note: "(choix le plus proche disponible)".
+- If `stock_lookup` returned `no_match` for both primary and alternative, replace
+  this block with:
+  "Aucun produit correspondant n'est actuellement en stock. Nous pouvons le
+   commander pour vous — dites-nous si vous souhaitez que nous lancions la commande."
 ---
 """
 

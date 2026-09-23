@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage
 from agent.prompts import SEARCH_AGENT_SYSTEM_PROMPT
 from langchain.tools import tool
 from models.Input_schema import SearchInput
+from config.llm_pool import load_keys_from_env, run_with_failover
 
 from config.apis import main_groq_model , alternative_groq_model , openrouter_model
 
@@ -18,12 +19,13 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 
-search_agent = create_agent(
-    model=openrouter_model,
-    tools=[ddgs_Search , tavily_Search],  
-    system_prompt=SEARCH_AGENT_SYSTEM_PROMPT,
-)
+# search_agent = create_agent(
+#     model=main_groq_model,
+#     tools=[ddgs_Search , tavily_Search],  
+#     system_prompt=SEARCH_AGENT_SYSTEM_PROMPT,
+# )
 
+_pool = load_keys_from_env()
 
 @tool("use_search_agent", args_schema=SearchInput)
 def use_search_agent( brand: str,model: str, year: int, mileage: int,fluid_type: str, engine: str = "", gearbox_ref: str = "",transmission_type: str = "",) -> dict:
@@ -49,7 +51,19 @@ def use_search_agent( brand: str,model: str, year: int, mileage: int,fluid_type:
 
 
     try:
-        result = search_agent.invoke({"messages":[HumanMessage(content=user_message)]})
+
+        def _run(model):
+
+            search_sub = create_agent(
+                model=model,
+                tools=[ddgs_Search, tavily_Search],
+                system_prompt=SEARCH_AGENT_SYSTEM_PROMPT,
+             )
+            
+            return search_sub.invoke({"messages": [HumanMessage(content=user_message)]})
+
+        result = run_with_failover(_pool, _run)
+        
 
     except Exception as e :
         return {"status": "error", "reason": f"Sub-agent invocation failed: {e}"}
