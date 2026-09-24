@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     # ---- HTTP ----
     cors_origins_raw: str = Field("*", alias="CORS_ORIGINS")
 
+
+    whatsapp_number: str = Field("", alias="WHATSAPP_NUMBER")
+
+    admin_username: str = Field(..., alias="ADMIN_USERNAME")
+    admin_password_hash: str = Field(..., alias="ADMIN_PASSWORD_HASH")
+
+    #run this command to generate new one : python -c "import secrets; print(secrets.token_urlsafe(64))"
+    jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
+
+    jwt_expire_minutes: int = Field(480, alias="JWT_EXPIRE_MINUTES")
+    
     # ---- Derived ----
     @property
     def groq_keys(self) -> list[str]:
