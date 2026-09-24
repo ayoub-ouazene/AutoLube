@@ -1,7 +1,7 @@
-# scripts/init_db.py
+﻿# scripts/init_db.py
 import sys
-from config.db import engine
-from  models.db import BaseDB
+from app.db.session import engine
+from  app.db.models.tables import BaseDB
 
 def init(reset: bool = False):
     if reset:

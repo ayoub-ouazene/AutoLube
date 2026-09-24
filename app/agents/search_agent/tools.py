@@ -1,4 +1,4 @@
-import os 
+﻿import os 
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain.tools import tool
@@ -13,11 +13,11 @@ import re
 from urllib.parse import urlparse
 import time 
 
-from config.apis import small_groq_model
+from app.core.apis import small_groq_model
 
-from models.Input_schema import SearchInput 
+from app.agents.schemas import SearchInput 
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
 
 
@@ -41,7 +41,7 @@ TRUSTED_DOMAINS_GEARBOX = TRUSTED_DOMAINS_COMMON
 
 
 def execute_tavily_fallback(car_info: str, query_seed: str , trusted_domains: list) -> str:
-    """Internal helper. Runs Tavily (trusted → open web), returns formatted text
+    """Internal helper. Runs Tavily (trusted â†’ open web), returns formatted text
     or a TAVILY_ERROR / TAVILY_NO_RESULTS marker."""
 
     for attempt in (1, 2):
@@ -79,7 +79,7 @@ def execute_tavily_fallback(car_info: str, query_seed: str , trusted_domains: li
             return _sanitize_text_sources(formatted_text)
         
         except Exception as e:
-            print(f"❌ [Tavily Error Caught]: {e}")
+            print(f"âŒ [Tavily Error Caught]: {e}")
 
             if attempt == 2 :
                 return f"TAVILY_ERROR: {e}"
@@ -91,7 +91,7 @@ def extract_specs_from_text(raw_text: str, car_info: str, fluid_type: str) -> st
     """Uses a micro-LLM to clean scraped web content into a rich technical summary."""
     fluid_lower = fluid_type.lower()
 
-    if any(k in fluid_lower for k in ("boite", "boîte", "gearbox", "transmission")):
+    if any(k in fluid_lower for k in ("boite", "boÃ®te", "gearbox", "transmission")):
         priority = """
         1. OE fluid reference / OEM part number (e.g., VW G 052 512 A2, Renault NFJ / NFX, PSA 9730.A1, Ford WSS-M2C200-D2, MB 235.10).
         2. Viscosity grade (e.g., 75W-80, 75W-90, 80W-90, ATF).
@@ -231,7 +231,7 @@ def tavily_Search(
     car_info = f"{base} {identifier}".strip()
 
     fluid_lower = fluid_type.lower()
-    if any(k in fluid_lower for k in ["boite", "boîte", "gearbox", "transmission"]):
+    if any(k in fluid_lower for k in ["boite", "boÃ®te", "gearbox", "transmission"]):
         query_seed = f"{car_info} boite de vitesses {transmission_type} huile preconisation specification"
         domains = TRUSTED_DOMAINS_GEARBOX
 
@@ -252,7 +252,7 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
     """
 
   
-    # Base identifiers (no engine, no gearbox — added per branch)
+    # Base identifiers (no engine, no gearbox â€” added per branch)
     base = f"{brand} {model} {year}".strip()
     base_alt = f"{year} {brand} {model}".strip()
 
@@ -274,8 +274,8 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
     if is_gearbox_req:
         
         if  not gearbox_code:
-             return ("Paramètre manquant : référence/code de boîte requis pour une recherche "
-                "d'huile de boîte. Ex. : MQ250, TL4, MA5, DQ250.")
+             return ("ParamÃ¨tre manquant : rÃ©fÃ©rence/code de boÃ®te requis pour une recherche "
+                "d'huile de boÃ®te. Ex. : MQ250, TL4, MA5, DQ250.")
         
         parts = [base]
         if gearbox_code:

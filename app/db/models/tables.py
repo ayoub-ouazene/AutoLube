@@ -1,12 +1,8 @@
-
-from sqlalchemy.orm import DeclarativeBase , Mapped, mapped_column
+﻿
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db.models.base import BaseDB
 from sqlalchemy import String, Integer, Numeric, Text, Index
 
-
-
-
-class BaseDB(DeclarativeBase):
-    pass
 
 
 class Oil_Engine_Item(BaseDB):

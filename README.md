@@ -15,24 +15,33 @@ This project is an in-progress backend/agent for AutoLube, an oil recommendation
 
 ```text
 .
-- agent/
-  - main_agent.py              # Current CLI entry point
-  - prompts.py                 # Main and search agent prompts
-  - db_tools/                  # DB-backed spec and stock lookup tools
-  - search_agent/              # Web search sub-agent and tools
-- alembic/                     # Database migration environment
-- config/
-  - apis.py                    # Model provider instances
-  - db.py                      # SQLAlchemy engine/session setup
-  - llm_pool.py                # LLM key pool and failover logic
-- models/
-  - db.py                      # SQLAlchemy tables
-  - Input_schema.py            # Pydantic tool schemas
+- app/
+  - agents/
+    - main_agent.py              # Main agent logic and process_turn()
+    - prompts.py                 # Main and search agent prompts
+    - schemas.py                 # Pydantic tool schemas
+    - db_tools/                  # DB-backed spec and stock lookup tools
+    - search_agent/              # Web search sub-agent and tools
+  - core/
+    - apis.py                    # Model provider instances
+    - llm_pool.py                # LLM key pool and failover logic
+  - db/
+    - session.py                 # SQLAlchemy engine/session setup
+    - models/
+      - base.py                  # SQLAlchemy DeclarativeBase
+      - tables.py                # SQLAlchemy tables
+  - api/                         # Placeholder API package
+  - schemas/                     # Placeholder API schemas package
+  - services/                    # Placeholder service package
+- alembic/                       # Database migration environment
 - scripts/
-  - init_db.py                 # Create/drop all tables from models
-  - generate_mock_spec.py      # Seed local oil spec cache
-  - generate_mock_stock.py     # Seed local stock data
-- Reports/                     # Project report documents
+  - init_db.py                   # Create/drop all tables from models
+  - seed_cache.py                # Seed local oil spec cache
+  - seed_stock.py                # Seed local stock data
+- tests/
+  - test_cli_chat.py             # Manual CLI runner
+  - test_imports.py              # Import smoke tests
+- Reports/                       # Project report documents
 - alembic.ini
 - requirements.txt
 - README.md
@@ -95,7 +104,7 @@ TAVILY_API_KEY=tavily_key
 DAHL_API_KEY=dahl_key_if_used
 ```
 
-`GROQ_KEYS` and `OPENROUTER_KEYS` are used by the current failover pool in `config/llm_pool.py`. The individual `GROQ_API_KEY*`, `OPENROUTER_API_KEY`, and `DAHL_API_KEY` values are still used by `config/apis.py` and search/extraction helpers.
+`GROQ_KEYS` and `OPENROUTER_KEYS` are used by the failover pool in `app/core/llm_pool.py`. The individual `GROQ_API_KEY*`, `OPENROUTER_API_KEY`, and `DAHL_API_KEY` values are used by `app/core/apis.py`; it also falls back to the pooled key variables when the individual values are not set.
 
 ## Database Setup
 
@@ -120,15 +129,15 @@ alembic upgrade head
 Seed development data after the tables exist:
 
 ```powershell
-python -m scripts.generate_mock_spec
-python -m scripts.generate_mock_stock
+python -m scripts.seed_cache
+python -m scripts.seed_stock
 ```
 
 To wipe and reseed those mock rows:
 
 ```powershell
-python -m scripts.generate_mock_spec --reset
-python -m scripts.generate_mock_stock --reset
+python -m scripts.seed_cache --reset
+python -m scripts.seed_stock --reset
 ```
 
 ## Run The Current Version
@@ -136,7 +145,7 @@ python -m scripts.generate_mock_stock --reset
 Run the CLI assistant from the project root:
 
 ```powershell
-python -m agent.main_agent
+python -m tests.test_cli_chat
 ```
 
 Type a customer request at the `Customer:` prompt. Type `exit` or `quit` to stop.
@@ -146,6 +155,16 @@ Example:
 ```text
 Customer: I need engine oil for a 2018 Renault Clio IV K9K 646
 ```
+
+## Tests
+
+Run the import smoke tests after restructuring or dependency changes:
+
+```powershell
+python -m unittest tests.test_imports
+```
+
+These tests only verify that the main modules import under the new `app.*` layout. They do not call the LLM or run a chat session.
 
 ## Development Notes
 

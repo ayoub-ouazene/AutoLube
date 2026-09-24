@@ -1,10 +1,10 @@
-from pydantic import  Field
+﻿from pydantic import  Field
 from langchain.tools import tool
 from sqlalchemy import select
 
-from config.db import SessionLocal
-from models.db import Oil_Engine_Cache, Transmission_Oil_Cache
-from models.Input_schema import SpecsLookupInput
+from app.db.session import SessionLocal
+from app.db.models.tables import Oil_Engine_Cache, Transmission_Oil_Cache
+from app.agents.schemas import SpecsLookupInput
 import re
 
 
@@ -132,7 +132,7 @@ def specs_lookup(
                 
                 return {"status": "found", "specs": _ser_engine(row)}
 
-            if any(k in fluid for k in ("boite", "boîte", "gearbox", "transmission")):
+            if any(k in fluid for k in ("boite", "boÃ®te", "gearbox", "transmission")):
                 row = _query_transmission_cache(
                     session, brand, model, year, gearbox_ref, transmission_type
                 )

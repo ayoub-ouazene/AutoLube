@@ -1,4 +1,4 @@
-# scripts/seed_stock.py
+﻿# scripts/seed_stock.py
 """
 Seed the stock tables with mock data for development.
 
@@ -8,8 +8,8 @@ Usage:
 """
 
 import sys
-from config.db import SessionLocal
-from models.db import Oil_Engine_Item, Oil_Transmission_Item
+from app.db.session import SessionLocal
+from app.db.models.tables import Oil_Engine_Item, Oil_Transmission_Item
 
 
 ENGINE_OIL_STOCK = [

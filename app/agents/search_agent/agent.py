@@ -1,20 +1,20 @@
-import os 
+﻿import os 
 import json
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
-from agent.search_agent.tools import ddgs_Search , tavily_Search
+from app.agents.search_agent.tools import ddgs_Search , tavily_Search
 from langchain_core.messages import HumanMessage
-from agent.prompts import SEARCH_AGENT_SYSTEM_PROMPT
+from app.agents.prompts import SEARCH_AGENT_SYSTEM_PROMPT
 from langchain.tools import tool
-from models.Input_schema import SearchInput
-from config.llm_pool import load_keys_from_env, run_with_failover
+from app.agents.schemas import SearchInput
+from app.core.llm_pool import load_keys_from_env, run_with_failover
 
-from config.apis import main_groq_model , alternative_groq_model , openrouter_model
+from app.core.apis import main_groq_model , alternative_groq_model , openrouter_model
 
 # Load environment
-load_dotenv(Path(__file__).parent.parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 
 
 
@@ -33,7 +33,7 @@ def use_search_agent( brand: str,model: str, year: int ,fluid_type: str, engine:
     """
         Search and reason over automotive technical specifications.
         Returns a structured dict (JSON-parsed) with keys: status, specs, warnings,
-        clarifications, rationale, verification, confidence — or a needs_more_info /
+        clarifications, rationale, verification, confidence â€” or a needs_more_info /
         no_data / error status with a reason.
     """
 
@@ -84,8 +84,4 @@ def use_search_agent( brand: str,model: str, year: int ,fluid_type: str, engine:
             "reason": "Sub-agent did not return valid JSON.",
             "raw": last[:500] if isinstance(last, str) else str(last)[:500],}
 
-
-
-
-
-
+Use_Search_Agent = use_search_agent

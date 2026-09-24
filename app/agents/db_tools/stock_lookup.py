@@ -1,14 +1,14 @@
-from pydantic import BaseModel, Field
+﻿from pydantic import BaseModel, Field
 from langchain.tools import tool
 from sqlalchemy import select, or_
 
-from config.db import SessionLocal
-from models.db import (
+from app.db.session import SessionLocal
+from app.db.models.tables import (
     Oil_Engine_Item,
     Oil_Transmission_Item,
 )
 
-from models.Input_schema import StockLookupInput
+from app.agents.schemas import StockLookupInput
 
 
 OEM_ALIASES = {
@@ -17,7 +17,7 @@ OEM_ALIASES = {
     "bmw longlife-01": ["bmw ll-01", "ll-01", "ll01"],
     "bmw longlife-98": ["bmw ll-98", "ll-98"],
 
-    # VW / Audi / Škoda / Seat
+    # VW / Audi / Å koda / Seat
     "vw 504.00": ["vw 504 00", "504.00", "504 00"],
     "vw 507.00": ["vw 507 00", "507.00", "507 00", "vw 507"],
 
@@ -170,7 +170,7 @@ def stock_lookup(fluid_type: str, oem_specification: str = "", viscosity: str = 
                 rows = _query_engine_oil(session, spec, visc)
                 products = [_ser_engine(r) for r in rows]
 
-            elif any(k in fluid for k in ("boite", "boîte", "gearbox", "transmission")):
+            elif any(k in fluid for k in ("boite", "boÃ®te", "gearbox", "transmission")):
                 rows = _query_gearbox_oil(session, spec, visc)
                 products = [_ser_transmission(r) for r in rows]
 

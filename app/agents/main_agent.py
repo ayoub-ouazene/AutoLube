@@ -1,19 +1,19 @@
-from agent.prompts import MAIN_AGENT_SYSTEM_PROMPT
+﻿from app.agents.prompts import MAIN_AGENT_SYSTEM_PROMPT
 
-from config.llm_pool import load_keys_from_env, run_with_failover
+from app.core.llm_pool import load_keys_from_env, run_with_failover
 
 from langchain.agents import create_agent
-from  agent.db_tools.stock_lookup import stock_lookup
+from  app.agents.db_tools.stock_lookup import stock_lookup
 from langchain_core.messages import HumanMessage , SystemMessage  , AIMessage
 import os 
 from pathlib import Path
 from dotenv import load_dotenv
-from agent.search_agent.agent import use_search_agent
+from app.agents.search_agent.agent import use_search_agent
 
-from agent.db_tools.spec_lookup import specs_lookup
-from config.apis import main_groq_model , openrouter_model 
+from app.agents.db_tools.specs_lookup import specs_lookup
+from app.core.apis import main_groq_model , openrouter_model 
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 pool = load_keys_from_env()
 
@@ -37,6 +37,47 @@ def invoke_main_agent(messages):
     return run_with_failover(pool, _run)
 
 MAX_HISTORY = 8   
+
+def process_turn(user_message: str, history: list, current_vehicle: dict):
+    """
+    Process a single user message through the main agent.
+    Returns (reply_text: str, updated_history: list, updated_vehicle: dict).
+    Pure function with respect to inputs - does not read stdin, does not print.
+    """
+    chat_history = list(history)
+    chat_history.append(HumanMessage(content=user_message))
+
+    # Build the payload: ephemeral vehicle context + trimmed history
+    payload = []
+    if current_vehicle:
+        payload.append(SystemMessage(
+            content=(
+                "Contexte v\u00e9hicule actuel (\u00e0 utiliser pour r\u00e9f\u00e9rence ; "
+                "r\u00e9initialiser si l'utilisateur mentionne un autre v\u00e9hicule) :\n"
+                f"{current_vehicle}"
+            )
+        ))
+    payload.extend(chat_history[-MAX_HISTORY:])
+
+    response = invoke_main_agent(payload)
+    response_messages = response["messages"]
+
+    # Update the persistent vehicle state from this turn's tool call (if any)
+    new_args = extract_vehicle_from_tool_call(response_messages)
+    current_vehicle = update_vehicle_state(current_vehicle, new_args)
+
+    # Keep only the AI's final reply in history - drop tool-call plumbing
+    ai_reply = response_messages[-1]
+    chat_history.append(ai_reply)
+    chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+
+    last_response = ai_reply.content
+    if isinstance(last_response, list):
+        last_response = "".join(
+            b.get("text", "") for b in last_response if isinstance(b, dict)
+        )
+
+    return last_response, chat_history, current_vehicle
 
 def extract_vehicle_from_tool_call(response_messages):
     """Scan the turn's messages for a use_search_agent call, return its args dict."""
@@ -86,12 +127,12 @@ def run_chat_session():
     print("--- AutoLube AI Assistant Initialized ---")
     print(
         "Bonjour ! Je suis l'assistant AutoLube. Je peux vous aider avec :\n"
-        "  • l'huile moteur\n"
-        "  • l'huile de boîte (transmission)\n"
-        "  • le filtre à huile\n"
-        "  • le liquide de frein\n\n"
-        "Pour commencer, indiquez-moi le véhicule (marque, modèle, année, "
-        "code moteur ou boîte) et le type de fluide souhaité.\n"
+        "  \u2022 l'huile moteur\n"
+        "  \u2022 l'huile de bo\u00eete (transmission)\n"
+        "  \u2022 le filtre \u00e0 huile\n"
+        "  \u2022 le liquide de frein\n\n"
+        "Pour commencer, indiquez-moi le v\u00e9hicule (marque, mod\u00e8le, ann\u00e9e, "
+        "code moteur ou bo\u00eete) et le type de fluide souhait\u00e9.\n"
     )
     print("Type 'exit' to quit.\n")
 
@@ -101,48 +142,9 @@ def run_chat_session():
         if user_input.lower() in ["exit", "quit"]:
             break
 
-        chat_history.append(HumanMessage(content=user_input))
-
-        # Build the payload: ephemeral vehicle context + trimmed history
-        payload = []
-        if current_vehicle:
-            payload.append(SystemMessage(
-                content=(
-                    "Contexte véhicule actuel (à utiliser pour référence ; "
-                    "réinitialiser si l'utilisateur mentionne un autre véhicule) :\n"
-                    f"{current_vehicle}"
-                )
-            ))
-        payload.extend(chat_history[-MAX_HISTORY:])
-
-        response = invoke_main_agent(payload)
-        response_messages = response["messages"]
-
-        # Update the persistent vehicle state from this turn's tool call (if any)
-        new_args = extract_vehicle_from_tool_call(response_messages)
-        current_vehicle = update_vehicle_state(current_vehicle, new_args)
-
-
-        # After main_agent.invoke, before reading the final reply
-        for msg in response["messages"]:
-            calls = getattr(msg, "tool_calls", None)
-            if calls:
-                print(f"[TOOL CALLS] {[c['name'] for c in calls]}")
-
-
-        # Keep only the AI's final reply in history — drop tool-call plumbing
-        ai_reply = response_messages[-1]
-        chat_history.append(ai_reply)
-        chat_history = _trim_history(chat_history[-MAX_HISTORY:])
-
-        # Print the reply
-        last_response = ai_reply.content
-        if isinstance(last_response, list):
-            last_response = "".join(
-                b.get("text", "") for b in last_response if isinstance(b, dict)
-            )
+        last_response, chat_history, current_vehicle = process_turn(
+            user_input, chat_history, current_vehicle
+        )
         print(f"\nAI Assistant: {last_response}\n")
 
 
-if __name__ == "__main__":
-    run_chat_session()

@@ -1,4 +1,4 @@
-# scripts/seed_cache.py
+﻿# scripts/seed_cache.py
 """
 Seed the specs cache tables with mock data.
 
@@ -8,8 +8,8 @@ Usage:
 """
 
 import sys
-from config.db import SessionLocal
-from models.db import Oil_Engine_Cache, Transmission_Oil_Cache
+from app.db.session import SessionLocal
+from app.db.models.tables import Oil_Engine_Cache, Transmission_Oil_Cache
 
 
 # One row = one engine variant. If two engines share the same spec, two rows.
@@ -72,16 +72,16 @@ ENGINE_CACHE = [
          viscosity="5w-30", capacity_liters="4.2",
          oem="psa b71 2290", api_acea="acea c2"),
 
-    # ---------------- Citroën C3 II ----------------
-    dict(brand="Citroën", model="C3 II", start_year=2009, end_year=2016,
+    # ---------------- CitroÃ«n C3 II ----------------
+    dict(brand="CitroÃ«n", model="C3 II", start_year=2009, end_year=2016,
          engine="DV4TD", fuel_type="diesel",
          viscosity="0w-30", capacity_liters="3.8",
          oem="psa b71 2312", api_acea="acea c2"),
-    dict(brand="Citroën", model="C3 II", start_year=2009, end_year=2016,
+    dict(brand="CitroÃ«n", model="C3 II", start_year=2009, end_year=2016,
          engine="DV6DTED", fuel_type="diesel",
          viscosity="0w-30", capacity_liters="3.8",
          oem="psa b71 2312", api_acea="acea c2"),
-    dict(brand="Citroën", model="C3 II", start_year=2009, end_year=2016,
+    dict(brand="CitroÃ«n", model="C3 II", start_year=2009, end_year=2016,
          engine="EB2F", fuel_type="petrol",
          viscosity="0w-30", capacity_liters="3.5",
          oem="psa b71 2312", api_acea="acea c2"),
@@ -199,7 +199,7 @@ TRANSMISSION_CACHE = [
          gearbox="MA5", transmission_type="Manual",
          viscosity="75w-80", capacity_liters="2.0",
          oem="psa 9730.a1"),
-    dict(brand="Citroën", model="C3 II", start_year=2009, end_year=2016,
+    dict(brand="CitroÃ«n", model="C3 II", start_year=2009, end_year=2016,
          gearbox="MA5", transmission_type="Manual",
          viscosity="75w-80", capacity_liters="2.0",
          oem="psa 9730.a1"),
