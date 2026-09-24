@@ -13,6 +13,8 @@ from app.db.models.tables import (
 )
 from app.db.session import SessionLocal
 
+from sqlalchemy import func, select
+from app.db.models.tables import Order, OrderItem
 
 CATEGORY_MAP = {
     "engine_oil":  Oil_Engine_Item,
@@ -157,7 +159,6 @@ def _build_whatsapp_url(order: Order, items: list[dict]) -> str:
     return f"https://wa.me/{number}?text={quote(text)}"
 
 
-
 def confirm_order(order_id: int) -> dict:
     """
     Mark an order as confirmed and decrement stock for its items.
@@ -205,4 +206,128 @@ def confirm_order(order_id: int) -> dict:
             "order_id": order.id,
             "status": order.status,
             "total": float(order.total),
+        }
+
+
+
+
+def list_orders(
+    status: str | None,
+    page: int,
+    page_size: int,
+) -> dict:
+    """Return a paginated list of orders, newest first."""
+    with SessionLocal() as session:
+        base = select(Order)
+        count_stmt = select(func.count()).select_from(Order)
+
+        if status:
+            base = base.where(Order.status == status)
+            count_stmt = count_stmt.where(Order.status == status)
+
+        total = session.scalar(count_stmt) or 0
+
+        base = (
+            base.order_by(Order.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = session.scalars(base).all()
+
+        # Count items per order in one query
+        order_ids = [r.id for r in rows]
+        item_counts: dict[int, int] = {}
+        if order_ids:
+            counts_stmt = (
+                select(OrderItem.order_id, func.count(OrderItem.id))
+                .where(OrderItem.order_id.in_(order_ids))
+                .group_by(OrderItem.order_id)
+            )
+            for oid, cnt in session.execute(counts_stmt):
+                item_counts[oid] = cnt
+
+        items = [
+            {
+                "id": r.id,
+                "created_at": r.created_at.isoformat(),
+                "customer_name": r.customer_name,
+                "customer_phone": r.customer_phone,
+                "wilaya": r.wilaya,
+                "city": r.city,
+                "total": float(r.total),
+                "status": r.status,
+                "item_count": item_counts.get(r.id, 0),
+            }
+            for r in rows
+        ]
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "has_next": page * page_size < total,
+        }
+
+
+
+def get_order_detail(order_id: int) -> dict | None:
+    """Return full order with its line items, or None if not found."""
+    with SessionLocal() as session:
+        order = session.get(Order, order_id)
+        if order is None:
+            return None
+
+        items = session.scalars(
+            select(OrderItem).where(OrderItem.order_id == order_id)
+        ).all()
+
+        return {
+            "id": order.id,
+            "created_at": order.created_at.isoformat(),
+            "customer_name": order.customer_name,
+            "customer_phone": order.customer_phone,
+            "customer_email": order.customer_email,
+            "wilaya": order.wilaya,
+            "city": order.city,
+            "notes": order.notes,
+            "total": float(order.total),
+            "status": order.status,
+            "items": [
+                {
+                    "id": it.id,
+                    "category": it.category,
+                    "product_id": it.product_id,
+                    "brand": it.brand_snapshot,
+                    "name": it.name_snapshot,
+                    "specification": it.specification_snapshot,
+                    "size": it.size_snapshot,
+                    "unit_price": float(it.unit_price_snapshot),
+                    "quantity": it.quantity,
+                    "line_total": float(it.line_total),
+                }
+                for it in items
+            ],
+        }
+
+
+
+def cancel_order(order_id: int) -> dict:
+    """Mark an order as cancelled. Stock is NOT restored because it was never
+    decremented until confirmation."""
+    with SessionLocal() as session:
+        order = session.get(Order, order_id)
+        if order is None:
+            raise OrderError(f"Commande introuvable : #{order_id}")
+        if order.status == "confirmed":
+            raise OrderError("Impossible d'annuler une commande déjà confirmée.")
+        if order.status == "cancelled":
+            raise OrderError("Cette commande est déjà annulée.")
+
+        order.status = "cancelled"
+        session.commit()
+
+        return {
+            "order_id": order.id,
+            "status": order.status,
         }
