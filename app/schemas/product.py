@@ -11,6 +11,8 @@ class ProductOut(BaseModel):
     size: str | None = None
     price: float
     in_stock: bool
+    image_front_url: str | None = None
+    image_back_url: str | None = None
 
 
 class ProductListResponse(BaseModel):

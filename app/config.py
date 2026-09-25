@@ -41,6 +41,19 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
 
     jwt_expire_minutes: int = Field(480, alias="JWT_EXPIRE_MINUTES")
+
+
+    cloudinary_cloud_name: str = Field("", alias="CLOUDINARY_CLOUD_NAME")
+    cloudinary_api_key: str = Field("", alias="CLOUDINARY_API_KEY")
+    cloudinary_api_secret: str = Field("", alias="CLOUDINARY_API_SECRET")
+
+    @property
+    def cloudinary_configured(self) -> bool:
+        return all([
+            self.cloudinary_cloud_name,
+            self.cloudinary_api_key,
+            self.cloudinary_api_secret,
+        ])
     
     # ---- Derived ----
     @property

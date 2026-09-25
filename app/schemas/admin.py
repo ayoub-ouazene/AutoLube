@@ -83,6 +83,8 @@ class AdminStockItem(BaseModel):
     price: float
     quantity: int
     in_stock: bool
+    image_front_url: str | None = None
+    image_back_url: str | None = None
 
 
 class AdminStockListResponse(BaseModel):

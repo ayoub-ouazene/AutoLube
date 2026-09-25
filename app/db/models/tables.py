@@ -36,7 +36,8 @@ class Oil_Engine_Item(BaseDB):
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer, default=0, index=True)    #how many items do we have in the stock 
 
-    
+    image_front_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    image_back_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     
 class Oil_Transmission_Item(BaseDB):
@@ -61,6 +62,8 @@ class Oil_Transmission_Item(BaseDB):
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer, default=0, index=True)    #how many items do we have in the stock 
 
+    image_front_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    image_back_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 class Filter_Item(BaseDB):
@@ -78,7 +81,8 @@ class Filter_Item(BaseDB):
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer, default=0, index=True)    #how many items do we have in the stock 
 
-
+    image_front_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    image_back_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 #for liquide de freine , additives , graisse ... 
 class Additional_Item(BaseDB):
@@ -98,6 +102,8 @@ class Additional_Item(BaseDB):
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer, default=0, index=True)    #how many items do we have in the stock 
 
+    image_front_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    image_back_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from app.config import settings
 from app.core.security import create_access_token, verify_credentials
@@ -25,7 +26,7 @@ def login(payload: LoginRequest) -> LoginResponse:
     )
 
 
-from fastapi import Depends, Query
+
 from app.api.deps import get_current_admin
 from app.schemas.admin import AdminOrderListResponse
 from app.services import order_service
@@ -175,3 +176,58 @@ def delete_stock(category: str, product_id: int) -> None:
         raise HTTPException(status_code=400, detail=str(e))
     if not deleted:
         raise HTTPException(status_code=404, detail="Produit introuvable.")
+
+
+
+
+
+@router.post(
+    "/stock/{category}/{product_id}/images",
+    response_model=AdminStockItem,
+    dependencies=[Depends(get_current_admin)],
+)
+def upload_stock_images(
+    category: str,
+    product_id: int,
+    front: UploadFile | None = File(None, description="Face avant (JPEG/PNG/WEBP, max 5 MB)"),
+    back: UploadFile | None = File(None, description="Face arrière (JPEG/PNG/WEBP, max 5 MB)"),
+) -> AdminStockItem:
+    """Upload or replace front/back images for a stock item. Send either or both."""
+    front_bytes = front.file.read() if front else None
+    front_type = front.content_type if front else None
+    back_bytes = back.file.read() if back else None
+    back_type = back.content_type if back else None
+
+    try:
+        result = product_service.set_stock_images(
+            category, product_id,
+            front_bytes, front_type,
+            back_bytes, back_type,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Produit introuvable.")
+    return result
+
+
+@router.delete(
+    "/stock/{category}/{product_id}/images/{position}",
+    response_model=AdminStockItem,
+    dependencies=[Depends(get_current_admin)],
+)
+def delete_stock_image(
+    category: str,
+    product_id: int,
+    position: str,
+) -> AdminStockItem:
+    """Remove a specific image (front or back) from a stock item."""
+    try:
+        result = product_service.clear_stock_image(category, product_id, position)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Produit introuvable.")
+    return result

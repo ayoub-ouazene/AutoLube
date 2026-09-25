@@ -3,6 +3,8 @@ import re
 
 from sqlalchemy import or_, select
 
+from app.config import settings
+
 from app.db.models.tables import (
     Additional_Item,
     Filter_Item,
@@ -10,7 +12,7 @@ from app.db.models.tables import (
     Oil_Transmission_Item,
 )
 from app.db.session import SessionLocal
-
+from app.core import cloudinary_client
 
 CATEGORY_MAP = {
     "engine_oil":  Oil_Engine_Item,
@@ -67,6 +69,8 @@ def _serialize(row, category: str) -> dict:
         "size": size,
         "price": float(row.price),
         "in_stock": row.quantity > 0,
+        "image_front_url": getattr(row, "image_front_url", None),
+        "image_back_url": getattr(row, "image_back_url", None),
     }
 
 
@@ -326,3 +330,101 @@ def delete_stock_item(category: str, product_id: int) -> bool:
         session.delete(row)
         session.commit()
         return True
+
+
+
+
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def _validate_image(file_bytes: bytes | None, content_type: str | None) -> None:
+    if not file_bytes:
+        raise ValueError("Fichier image vide.")
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise ValueError(
+            f"Type d'image non supporté : {content_type or 'inconnu'}. "
+            "Formats acceptés : JPEG, PNG, WEBP."
+        )
+    if len(file_bytes) > MAX_IMAGE_BYTES:
+        size_kb = len(file_bytes) // 1024
+        raise ValueError(f"Image trop volumineuse ({size_kb} KB). Maximum 5 MB.")
+
+
+def set_stock_images(
+    category: str,
+    product_id: int,
+    front_bytes: bytes | None,
+    front_type: str | None,
+    back_bytes: bytes | None,
+    back_type: str | None,
+) -> dict | None:
+    """
+    Upload or replace front and/or back image for a stock item.
+    Any provided image replaces the existing one; the old Cloudinary asset is
+    deleted after a successful replacement.
+    Returns the updated item, or None if the product doesn't exist.
+    Raises ValueError on validation failure, RuntimeError if Cloudinary isn't configured.
+    """
+    if category not in CATEGORY_MAP:
+        raise ValueError(f"Unknown category: {category}")
+    if front_bytes is None and back_bytes is None:
+        raise ValueError("Aucune image fournie.")
+
+    if not settings.cloudinary_configured:
+        raise RuntimeError("Cloudinary n'est pas configuré sur le serveur.")
+
+    model = CATEGORY_MAP[category]
+
+    with SessionLocal() as session:
+        row = session.get(model, product_id)
+        if row is None:
+            return None
+
+        if front_bytes is not None:
+            _validate_image(front_bytes, front_type)
+            new_url = cloudinary_client.upload_image(front_bytes)
+            old_url = row.image_front_url
+            row.image_front_url = new_url
+            if old_url and old_url != new_url:
+                cloudinary_client.delete_image_by_url(old_url)
+
+        if back_bytes is not None:
+            _validate_image(back_bytes, back_type)
+            new_url = cloudinary_client.upload_image(back_bytes)
+            old_url = row.image_back_url
+            row.image_back_url = new_url
+            if old_url and old_url != new_url:
+                cloudinary_client.delete_image_by_url(old_url)
+
+        session.commit()
+        session.refresh(row)
+        return _serialize_admin(row, category)
+
+
+def clear_stock_image(category: str, product_id: int, position: str) -> dict | None:
+    """
+    Null a single image column and delete the Cloudinary asset.
+    `position` must be "front" or "back".
+    """
+    if category not in CATEGORY_MAP:
+        raise ValueError(f"Unknown category: {category}")
+    if position not in ("front", "back"):
+        raise ValueError("position must be 'front' or 'back'")
+
+    model = CATEGORY_MAP[category]
+    column = "image_front_url" if position == "front" else "image_back_url"
+
+    with SessionLocal() as session:
+        row = session.get(model, product_id)
+        if row is None:
+            return None
+
+        url = getattr(row, column)
+        if url:
+            cloudinary_client.delete_image_by_url(url)
+        setattr(row, column, None)
+        session.commit()
+        session.refresh(row)
+        return _serialize_admin(row, category)
