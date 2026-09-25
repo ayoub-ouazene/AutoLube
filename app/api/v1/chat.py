@@ -34,13 +34,7 @@ def send_message(session_id: str, payload: MessageRequest) -> MessageResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found or expired.",
         )
-    try:
-        reply = chat_service.process_message(session_id, payload.message)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Agent error: {e}",
-        )
+    reply = chat_service.process_message(session_id, payload.message)
     return MessageResponse(reply=reply)
 
 

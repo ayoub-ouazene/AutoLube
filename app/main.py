@@ -1,13 +1,18 @@
 ﻿from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.config import settings
+from app.core.exceptions import AppError
 from app.db.session import engine
 from fastapi.responses import RedirectResponse
 
+from app.core.access_log import AccessDurationMiddleware, install_uvicorn_duration_patch
+
+install_uvicorn_duration_patch()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,6 +44,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AccessDurationMiddleware) 
+
+@app.exception_handler(AppError)
+async def _app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.http_status,
+        content={"detail": exc.message},
+    )
+
 
 app.include_router(api_router, prefix="/api/v1")
 

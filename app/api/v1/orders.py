@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.exceptions import DatabaseError
 from app.schemas.order import OrderCreate, OrderCreateResponse
 from app.services import order_service
 from app.services.order_service import OrderError
@@ -17,4 +19,6 @@ def create_order(payload: OrderCreate) -> OrderCreateResponse:
         )
     except OrderError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except SQLAlchemyError as e:
+        raise DatabaseError() from e
     return OrderCreateResponse(**result)

@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 
+from app.core.exceptions import (
+    AppError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+    RateLimitError,
+)
+
 
 @dataclass
 class KeyEntry:
@@ -57,6 +64,17 @@ def build_model(entry: KeyEntry):
 def _is_rate_limit(exc: Exception) -> bool:
     s = str(exc).lower()
     return ("429" in s) or ("rate" in s and "limit" in s) or ("tpm" in s) or ("rpm" in s)
+
+
+def _classify_provider_error(exc: Exception) -> type[AppError]:
+    s = str(exc).lower()
+    if "429" in s or "rate" in s and "limit" in s or "tpm" in s or "rpm" in s:
+        return RateLimitError
+    if "timeout" in s or "timed out" in s:
+        return ProviderTimeoutError
+    if "503" in s or "502" in s or "unavailable" in s or "overloaded" in s:
+        return ProviderUnavailableError
+    return ProviderUnavailableError
 
 
 def load_keys_from_env() -> KeyPool:
@@ -116,4 +134,5 @@ def run_with_failover(pool: KeyPool, fn):
                 print(f"[LLM] error on {entry.name}: {e}")
             last_error = e
 
-    raise RuntimeError(f"All API keys exhausted. Last error: {last_error}")
+    exc_class = _classify_provider_error(last_error) if last_error else ProviderUnavailableError
+    raise exc_class(f"Tous les fournisseurs ont échoué. Dernière erreur : {last_error}")

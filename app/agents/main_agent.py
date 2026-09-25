@@ -1,6 +1,12 @@
 ﻿from app.agents.prompts import MAIN_AGENT_SYSTEM_PROMPT
 
 from app.core.llm_pool import load_keys_from_env, run_with_failover
+from app.core.exceptions import (
+    AppError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+    RateLimitError,
+)
 
 from langchain.agents import create_agent
 from  app.agents.db_tools.stock_lookup import stock_lookup
@@ -25,6 +31,17 @@ pool = load_keys_from_env()
 
 
 TOOLS = [use_search_agent, stock_lookup , specs_lookup]
+
+
+def _translate_llm_error(e: Exception) -> AppError:
+    s = str(e).lower()
+    if "429" in s or "rate" in s and "limit" in s or "tpm" in s or "rpm" in s:
+        return RateLimitError()
+    if "timeout" in s or "timed out" in s:
+        return ProviderTimeoutError()
+    if "503" in s or "502" in s or "upstream" in s or "overloaded" in s:
+        return ProviderUnavailableError()
+    return AppError()
 
 def invoke_main_agent(messages):
     def _run(model):
@@ -59,7 +76,12 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
         ))
     payload.extend(chat_history[-MAX_HISTORY:])
 
-    response = invoke_main_agent(payload)
+    try:
+        response = invoke_main_agent(payload)
+    except AppError:
+        raise
+    except Exception as e:
+        raise _translate_llm_error(e) from e
     response_messages = response["messages"]
 
     # Update the persistent vehicle state from this turn's tool call (if any)
@@ -146,5 +168,4 @@ def run_chat_session():
             user_input, chat_history, current_vehicle
         )
         print(f"\nAI Assistant: {last_response}\n")
-
 
