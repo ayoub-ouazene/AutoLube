@@ -12,23 +12,25 @@ from fastapi.responses import RedirectResponse
 
 from app.core.access_log import AccessDurationMiddleware, install_uvicorn_duration_patch
 
+from app.core.rate_limit import (
+    RateLimitMiddleware,
+    start_cleanup_task,
+    stop_cleanup_task,
+)
+
+
 install_uvicorn_duration_patch()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ---- startup ----
     print("[startup] AutoLube API starting up")
-
-    print(f"swagger documentation : http://127.0.0.1:8000/docs ")
-   
-    # engine is a module-level SQLAlchemy Engine; it connects lazily on first use,
-    # so there's nothing to warm here beyond importing it (which we already did).
-    # If you ever add a key-pool warmup or a cache warmup, do it below.
-    yield
-    # ---- shutdown ----
-    print("[shutdown] Disposing DB engine")
-    engine.dispose()
-
+    cleanup_task = start_cleanup_task()
+    try:
+        yield
+    finally:
+        await stop_cleanup_task(cleanup_task)
+        print("[shutdown] Disposing DB engine")
+        engine.dispose()
 
 app = FastAPI(
     title="AutoLube API",
@@ -37,6 +39,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+app.add_middleware(RateLimitMiddleware) 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
