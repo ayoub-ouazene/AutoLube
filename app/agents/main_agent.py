@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from app.agents.search_agent.agent import use_search_agent
 
 from app.agents.db_tools.specs_lookup import specs_lookup
-from app.core.apis import main_groq_model , openrouter_model 
+
 
 import json
 
@@ -26,11 +26,6 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 pool = load_keys_from_env()
 
-# main_agent = create_agent(
-#     model=main_groq_model,
-#     tools=[use_search_agent, stock_lookup , specs_lookup],
-#     system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-# )
 
 
 TOOLS = [use_search_agent, stock_lookup , specs_lookup]
