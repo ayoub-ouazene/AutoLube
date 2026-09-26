@@ -1,62 +1,46 @@
-﻿# Oil E-Commerce AI Assistant
+# AutoLube Oil E-Commerce API
 
-This project is an in-progress backend/agent for AutoLube, an oil recommendation assistant. The current version runs as a CLI chat app with a main LangChain agent, a web search sub-agent, local database cache lookup, and stock lookup tools.
+AutoLube is a FastAPI backend for an automotive oil and lubricant store. It provides product browsing, order placement, an AI chat assistant, and admin endpoints for managing orders and inventory. The assistant uses local vehicle oil-specification and stock data, with web search as a fallback when specifications are missing.
 
-## What The App Does Now
+## Features
 
-- Collects vehicle details from the user in a terminal chat session.
-- Looks up known engine/gearbox oil specs from the local database cache.
-- Falls back to DDGS/Tavily web search when local specs are missing.
-- Looks up matching oil products from local stock tables.
-- Uses Groq models first, with optional OpenRouter failover keys.
-- Uses SQLAlchemy models with Alembic migrations and seed scripts.
+- Public product listing and product detail endpoints with category, brand, price, size, and text filters.
+- Chat sessions backed by an agent that can look up cached oil specifications and matching stock, then use DDGS/Tavily search as needed.
+- Customer order creation and admin order listing, detail, confirmation, and cancellation.
+- Admin inventory CRUD and optional front/back product image uploads to Cloudinary.
+- JWT-protected admin endpoints, request rate limits, CORS configuration, and health endpoint.
+- PostgreSQL persistence through SQLAlchemy, with Alembic migrations and development seed scripts.
+- A standalone CLI chat runner for trying the assistant without the API.
 
-## Project Structure
+## Project layout
 
 ```text
-.
-- app/
-  - agents/
-    - main_agent.py              # Main agent logic and process_turn()
-    - prompts.py                 # Main and search agent prompts
-    - schemas.py                 # Pydantic tool schemas
-    - db_tools/                  # DB-backed spec and stock lookup tools
-    - search_agent/              # Web search sub-agent and tools
-  - core/
-    - apis.py                    # Model provider instances
-    - llm_pool.py                # LLM key pool and failover logic
-  - db/
-    - session.py                 # SQLAlchemy engine/session setup
-    - models/
-      - base.py                  # SQLAlchemy DeclarativeBase
-      - tables.py                # SQLAlchemy tables
-  - api/                         # Placeholder API package
-  - schemas/                     # Placeholder API schemas package
-  - services/                    # Placeholder service package
-- alembic/                       # Database migration environment
-- scripts/
-  - init_db.py                   # Create/drop all tables from models
-  - seed_cache.py                # Seed local oil spec cache
-  - seed_stock.py                # Seed local stock data
-- tests/
-  - test_cli_chat.py             # Manual CLI runner
-  - test_imports.py              # Import smoke tests
-- Reports/                       # Project report documents
-- alembic.ini
-- requirements.txt
-- README.md
+app/
+  agents/       LangChain assistant, search agent, and database tools
+  api/          FastAPI routers and authentication dependencies
+  core/         Settings integrations, security, rate limiting, and errors
+  db/           SQLAlchemy engine and models
+  schemas/      API request and response schemas
+  services/     Chat, product, and order business logic
+alembic/        Database migration environment and revisions
+scripts/        Database initialization, seed data, and password utility
+tests/          Import checks, API workflow scripts, and CLI chat runner
+Reports/        Project reports
+alembic.ini
+requirements.txt
 ```
 
 ## Requirements
 
 - Python 3.10 or newer.
-- PostgreSQL database URL. Neon/Postgres works with the current `psycopg` dependency.
-- At least one Groq API key, or one OpenRouter key for failover.
-- Tavily API key for fallback search.
+- PostgreSQL and a `DATABASE_URL` using the `postgresql+psycopg://` driver.
+- Groq credentials for the assistant. OpenRouter keys can be configured for model failover.
+- A Tavily API key for the search fallback. DDGS can be used as the initial search path.
+- Cloudinary credentials are optional; image uploads require them.
 
-## Setup
+## Installation
 
-From the project root:
+From the project root, create and activate a virtual environment, then install dependencies:
 
 ```powershell
 python -m venv .venv
@@ -65,13 +49,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-If you are using Command Prompt instead of PowerShell:
-
-```cmd
-.venv\Scripts\activate.bat
-```
-
-On macOS/Linux:
+For macOS or Linux:
 
 ```bash
 python3 -m venv .venv
@@ -80,96 +58,112 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Environment Variables
+## Configuration
 
-Create a `.env` file in the project root:
-
-```text
-.env
-```
-
-Use this shape:
+Create a `.env` file at the project root. The following settings are required by the current application:
 
 ```env
 DATABASE_URL=postgresql+psycopg://user:password@host:5432/database
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=<bcrypt-hash>
+JWT_SECRET_KEY=<long-random-secret>
+```
 
+Generate an admin password hash with:
+
+```powershell
+python -m scripts.hash_password
+```
+
+Set the optional assistant and service settings as needed:
+
+```env
 GROQ_KEYS=groq_key_1,groq_key_2
 OPENROUTER_KEYS=openrouter_key_1
-
 GROQ_API_KEY=groq_key_1
 GROQ_API_KEY2=groq_key_2
 GROQ_API_KEY3=groq_key_3
 OPENROUTER_API_KEY=openrouter_key_1
 TAVILY_API_KEY=tavily_key
-DAHL_API_KEY=dahl_key_if_used
+CORS_ORIGINS=http://localhost:3000,https://your-store.example
+WHATSAPP_NUMBER=
+JWT_EXPIRE_MINUTES=480
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 ```
 
-`GROQ_KEYS` and `OPENROUTER_KEYS` are used by the failover pool in `app/core/llm_pool.py`. The individual `GROQ_API_KEY*`, `OPENROUTER_API_KEY`, and `DAHL_API_KEY` values are used by `app/core/apis.py`; it also falls back to the pooled key variables when the individual values are not set.
+`GROQ_KEYS` and `OPENROUTER_KEYS` are comma-separated pools used by the model failover logic. Cloudinary settings may be left empty when product image upload is not needed. Keep `.env` private; it is ignored by Git.
 
-## Database Setup
+## Database
 
-You can create tables directly from the SQLAlchemy models:
-
-```powershell
-python -m scripts.init_db
-```
-
-To reset all tables before creating them again:
-
-```powershell
-python -m scripts.init_db --reset
-```
-
-The project also includes Alembic. To apply migrations instead:
+Apply the existing migrations:
 
 ```powershell
 alembic upgrade head
 ```
 
-Seed development data after the tables exist:
+Alternatively, create tables from the current models for a development database:
+
+```powershell
+python -m scripts.init_db
+```
+
+To drop and recreate all model tables:
+
+```powershell
+python -m scripts.init_db --reset
+```
+
+Load or reset development cache and stock records:
 
 ```powershell
 python -m scripts.seed_cache
 python -m scripts.seed_stock
-```
-
-To wipe and reseed those mock rows:
-
-```powershell
 python -m scripts.seed_cache --reset
 python -m scripts.seed_stock --reset
 ```
 
-## Run The Current Version
+## Run the API
 
-Run the CLI assistant from the project root:
+Start the development server from the project root:
+
+```powershell
+uvicorn app.main:app --reload
+```
+
+The API is available at `http://127.0.0.1:8000`. Interactive OpenAPI documentation is at `/docs`, and `/health` returns the service health status.
+
+### API routes
+
+All application routes are prefixed with `/api/v1`.
+
+| Area | Routes | Access |
+| --- | --- | --- |
+| Chat | `POST /chat/session`, `POST /chat/session/{session_id}/message`, `DELETE /chat/session/{session_id}` | Public |
+| Products | `GET /products`, `GET /products/{category}/{product_id}` | Public |
+| Orders | `POST /orders` | Public |
+| Admin login | `POST /admin/login` | Public credentials exchange |
+| Admin orders | `GET /admin/orders`, `GET /admin/orders/{order_id}`, `POST /admin/orders/{order_id}/confirm`, `POST /admin/orders/{order_id}/cancel` | Bearer JWT |
+| Admin stock | `GET/POST /admin/stock`, `PATCH/DELETE /admin/stock/{category}/{product_id}` | Bearer JWT |
+| Admin images | `POST /admin/stock/{category}/{product_id}/images`, `DELETE /admin/stock/{category}/{product_id}/images/{position}` | Bearer JWT |
+
+## CLI assistant
+
+The assistant can also run directly in a terminal:
 
 ```powershell
 python -m tests.test_cli_chat
 ```
 
-Type a customer request at the `Customer:` prompt. Type `exit` or `quit` to stop.
+Enter a request at the `Customer:` prompt. Type `exit` or `quit` to stop.
 
-Example:
+## Tests and workflow scripts
 
-```text
-Customer: I need engine oil for a 2018 Renault Clio IV K9K 646
-```
-
-## Tests
-
-Run the import smoke tests after restructuring or dependency changes:
+Run the import smoke tests with:
 
 ```powershell
 python -m unittest tests.test_imports
 ```
 
-These tests only verify that the main modules import under the new `app.*` layout. They do not call the LLM or run a chat session.
-
-## Development Notes
-
-- The current app is a CLI workflow, not a web API yet.
-- `specs_lookup` checks the local oil specification cache before web search.
-- `stock_lookup` searches local stock tables after an oil spec is known.
-- DDGS is the first web search path, with Tavily used as fallback/verification.
-- External search results depend on network access and source availability.
+`tests/test_admin.py` and `tests/test_e2e_flow.py` are manual HTTP workflow scripts and expect the API server and configured database to be running. `tests/llm_product_extraction.py` also calls the live API and assistant. `tests/test_cli_chat.py` is the CLI runner.

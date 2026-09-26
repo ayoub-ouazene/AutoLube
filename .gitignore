@@ -5,6 +5,7 @@
 .env.*
 !.env.example
 !.env.template
+.envrc
 *.pem
 *.key
 *.crt
@@ -38,6 +39,7 @@ MANIFEST
 .pyre/
 .mypy_cache/
 .ruff_cache/
+.cache/
 
 # ============================================
 # Virtual Environments
@@ -96,6 +98,7 @@ htmlcov/
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
+*.sqlite-journal
 chat_history.db
 checkpoints/
 *.dump
@@ -107,6 +110,7 @@ checkpoints/
 # ============================================
 *.log
 logs/
+*.pid
 
 # ============================================
 # OS Files

@@ -34,8 +34,9 @@ def send_message(session_id: str, payload: MessageRequest) -> MessageResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found or expired.",
         )
-    reply = chat_service.process_message(session_id, payload.message)
-    return MessageResponse(reply=reply)
+    
+    reply, products = chat_service.process_message(session_id, payload.message)
+    return MessageResponse(reply=reply, products=products)
 
 
 @router.delete(

@@ -50,7 +50,7 @@ def process_message(session_id: str, message: str) -> str:
         _sessions.pop(session_id, None)
         raise KeyError(f"Unknown or expired session: {session_id}")
 
-    reply, updated_history, updated_vehicle = process_turn(
+    reply, updated_history, updated_vehicle, products = process_turn(
         user_message=message,
         history=session["history"],
         current_vehicle=session["current_vehicle"],
@@ -61,7 +61,7 @@ def process_message(session_id: str, message: str) -> str:
     session["last_activity"] = time.time()   # <- resets idle timer
     # created_at stays fixed — that's the hard cap
 
-    return reply
+    return reply, products
 
 
 def end_session(session_id: str) -> None:

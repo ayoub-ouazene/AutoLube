@@ -9,7 +9,7 @@ from app.db.models.tables import (
 )
 
 from app.agents.schemas import StockLookupInput
-
+from app.services.product_service import _serialize as _serialize_product
 
 OEM_ALIASES = {
     # BMW
@@ -49,29 +49,11 @@ OEM_ALIASES = {
 
 # ---------- serializers ----------
 
-def _ser_engine(item: Oil_Engine_Item) -> dict:
-    return {
-        "id": item.id,
-        "brand": item.brand,
-        "oem": item.oem,
-        "api_acea": item.api_acea,
-        "viscosity": item.viscosity,
-        "size": item.size,
-        "price": float(item.price),
-        "quantity": item.quantity,
-    }
+def _ser_engine(item) -> dict:
+    return _serialize_product(item, "engine_oil")
 
-
-def _ser_transmission(item: Oil_Transmission_Item) -> dict:
-    return {
-        "id": item.id,
-        "brand": item.brand,
-        "oem": item.oem,
-        "viscosity": item.viscosity,
-        "size": item.size,
-        "price": float(item.price),
-        "quantity": item.quantity,
-    }
+def _ser_transmission(item) -> dict:
+    return _serialize_product(item, "gearbox_oil")
 
 import re
 

@@ -19,6 +19,9 @@ from app.agents.search_agent.agent import use_search_agent
 from app.agents.db_tools.specs_lookup import specs_lookup
 from app.core.apis import main_groq_model , openrouter_model 
 
+import json
+
+
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 pool = load_keys_from_env()
@@ -32,6 +35,60 @@ pool = load_keys_from_env()
 
 TOOLS = [use_search_agent, stock_lookup , specs_lookup]
 
+
+def _parse_tool_payload(content) -> dict | None:
+    """
+    ToolMessage content can be a dict (native) or a JSON string (older
+    LangChain versions). Return the parsed dict, or None.
+    """
+    if isinstance(content, dict):
+        return content
+    if isinstance(content, str):
+        try:
+            return json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    return None
+
+
+def _extract_products_from_messages(messages: list) -> list[dict]:
+    """
+    Walk the message list, collect every product returned by any
+    stock_lookup ToolMessage with status "ok", deduplicate by
+    (category, id), sort by price ascending.
+    """
+    # Map each tool_call_id to the name of the tool that was called.
+    call_id_to_name: dict[str, str] = {}
+    for m in messages:
+        for call in (getattr(m, "tool_calls", None) or []):
+            cid = call.get("id")
+            name = call.get("name")
+            if cid and name:
+                call_id_to_name[cid] = name
+
+    seen: set[tuple[str, int]] = set()
+    products: list[dict] = []
+
+    for m in messages:
+        if type(m).__name__ != "ToolMessage":
+            continue
+        cid = getattr(m, "tool_call_id", None)
+        if call_id_to_name.get(cid) != "stock_lookup":
+            continue
+
+        payload = _parse_tool_payload(m.content)
+        if not isinstance(payload, dict) or payload.get("status") != "ok":
+            continue
+
+        for prod in payload.get("products", []) or []:
+            key = (prod.get("category"), prod.get("id"))
+            if key in seen:
+                continue
+            seen.add(key)
+            products.append(prod)
+
+    products.sort(key=lambda p: p.get("price", 0))
+    return products
 
 def _translate_llm_error(e: Exception) -> AppError:
     s = str(e).lower()
@@ -55,10 +112,15 @@ def invoke_main_agent(messages):
 
 MAX_HISTORY = 8   
 
+
 def process_turn(user_message: str, history: list, current_vehicle: dict):
     """
     Process a single user message through the main agent.
-    Returns (reply_text: str, updated_history: list, updated_vehicle: dict).
+    Returns (reply_text: str, updated_history: list, updated_vehicle: dict,
+    products: list[dict]).
+    `products` is a list of dicts matching the public ProductOut shape
+    (empty if no stock_lookup succeeded, or if the fluid was Oil Filter /
+    Brake Fluid which never reach this pipeline).
     Pure function with respect to inputs - does not read stdin, does not print.
     """
     chat_history = list(history)
@@ -88,6 +150,9 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
     new_args = extract_vehicle_from_tool_call(response_messages)
     current_vehicle = update_vehicle_state(current_vehicle, new_args)
 
+    # Extract products recommended in this turn (may be empty)
+    products = _extract_products_from_messages(response_messages)
+
     # Keep only the AI's final reply in history - drop tool-call plumbing
     ai_reply = response_messages[-1]
     chat_history.append(ai_reply)
@@ -99,7 +164,8 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
             b.get("text", "") for b in last_response if isinstance(b, dict)
         )
 
-    return last_response, chat_history, current_vehicle
+    return last_response, chat_history, current_vehicle, products
+
 
 def extract_vehicle_from_tool_call(response_messages):
     """Scan the turn's messages for a use_search_agent call, return its args dict."""
@@ -164,8 +230,16 @@ def run_chat_session():
         if user_input.lower() in ["exit", "quit"]:
             break
 
-        last_response, chat_history, current_vehicle = process_turn(
-            user_input, chat_history, current_vehicle
+        last_response, chat_history, current_vehicle, _products = process_turn(
+            user_message=user_input,
+            history=chat_history,
+            current_vehicle=current_vehicle,
         )
+        
         print(f"\nAI Assistant: {last_response}\n")
+        
+        if _products:
+            print(f"\n[DEBUG] {len(_products)} produit(s) recommandé(s):")
+            for p in _products:
+                print(f"  - {p['name']} — {p['price']} DA ({p['category']}/{p['id']})")
 

@@ -1,17 +1,25 @@
-﻿# Core agent framework
+# API server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Configuration, validation, and authentication
+pydantic
+pydantic-settings
+python-dotenv
+PyJWT
+bcrypt
+
+# AI agents and model providers
 langchain
 langchain-core
 langgraph
-langgraph-checkpoint
-langgraph-checkpoint-sqlite
-
-# Model providers
 langchain-groq
 langchain-openai
-
-# Search providers and web extraction
 langchain-tavily
 tavily-python
+
+# Search and web extraction
 ddgs
 trafilatura
 requests
@@ -21,6 +29,5 @@ sqlalchemy
 psycopg[binary]
 alembic
 
-# Configuration and schemas
-python-dotenv
-pydantic
+# Product image storage
+cloudinary
