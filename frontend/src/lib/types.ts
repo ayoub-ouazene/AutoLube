@@ -19,6 +19,7 @@ export interface ProductListParams {
   brand?: string[];
   min_price?: number;
   max_price?: number;
+  size?: string[];
   size_min?: number;
   size_max?: number;
   q?: string;

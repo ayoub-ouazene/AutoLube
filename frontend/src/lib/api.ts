@@ -5,14 +5,18 @@ function getBaseUrl(): string {
   if (!url) {
     throw new Error("NEXT_PUBLIC_API_URL is not defined");
   }
-  return url;
+  // Ensure trailing slash so that relative paths append correctly.
+  return url.endsWith("/") ? url : url + "/";
 }
 
 export async function apiGet<T>(
   path: string,
   params?: Record<string, string | number | boolean | string[] | null | undefined>,
 ): Promise<T> {
-  const url = new URL(path, getBaseUrl());
+  // Strip leading slash from path so it is treated as relative to the full
+  // base URL (including its /api/v1 prefix) rather than replacing it.
+  const relativePath = path.startsWith("/") ? path.slice(1) : path;
+  const url = new URL(relativePath, getBaseUrl());
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {

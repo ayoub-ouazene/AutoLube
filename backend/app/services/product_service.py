@@ -111,6 +111,7 @@ def list_products(
     brands: list[str] | None,
     min_price: float | None,
     max_price: float | None,
+    sizes: list[str] | None,
     size_min: float | None,
     size_max: float | None,
     q: str | None,
@@ -134,7 +135,12 @@ def list_products(
             for row in session.scalars(stmt).all():
                 rows.append(_serialize(row, cat))
 
-    # Size filter (in Python; size is a string)
+    # Exact size labels from the catalog checkboxes ("5L", "1L", …)
+    if sizes:
+        wanted = {s.strip().lower() for s in sizes if s and s.strip()}
+        rows = [r for r in rows if (r["size"] or "").strip().lower() in wanted]
+
+    # Size range filter (in Python; size is a string)
     if size_min is not None or size_max is not None:
         filtered = []
         for r in rows:

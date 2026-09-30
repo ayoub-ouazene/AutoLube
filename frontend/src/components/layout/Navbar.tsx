@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 
-const categories = [
-  { label: "Huile moteur", value: "engine_oil" },
-  { label: "Huile de boîte", value: "gearbox_oil" },
-  { label: "Filtres", value: "oil_filter" },
-  { label: "Autres", value: "additional" },
-];
-
 export default function Navbar() {
   return (
     <header className="bg-white border-b border-neutral-200">
@@ -34,18 +27,13 @@ export default function Navbar() {
           AUTOLUBE
         </Link>
 
-        {/* Category links */}
-        <nav className="flex items-center gap-5">
-          {categories.map((cat) => (
-            <Link
-              key={cat.value}
-              href={`/products?category=${cat.value}`}
-              className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors whitespace-nowrap"
-            >
-              {cat.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Products link */}
+        <Link
+          href="/products"
+          className="text-sm font-medium text-neutral-900 hover:text-neutral-600"
+        >
+          Produits
+        </Link>
 
         {/* Cart icon */}
         <div className="relative shrink-0">

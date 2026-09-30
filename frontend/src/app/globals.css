@@ -15,3 +15,43 @@ body {
   margin: 0;
   min-height: 100vh;
 }
+
+/* Dual-thumb price range slider */
+.price-slider input[type="range"] {
+  height: 1rem;
+}
+
+.price-slider input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background-color: #171717;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #d4d4d4;
+  cursor: pointer;
+}
+
+.price-slider input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background-color: #171717;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #d4d4d4;
+  cursor: pointer;
+}
+
+.price-slider input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 1rem;
+}
+
+.price-slider input[type="range"]::-moz-range-track {
+  background: transparent;
+  height: 1rem;
+}
+
