@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { ProductGallery } from "./ProductGallery";
+import { useCart } from "@/components/cart/CartProvider";
 
 interface Props {
   product: Product;
@@ -15,6 +16,7 @@ function formatDA(n: number): string {
 }
 
 export function ProductModal({ product, onClose }: Props) {
+  const { addItem } = useCart();
   const [qty, setQty] = useState(1);
 
   // Lock body scroll
@@ -123,8 +125,8 @@ export function ProductModal({ product, onClose }: Props) {
               type="button"
               disabled={!product.in_stock}
               onClick={() => {
-                // TODO: Layer 5 — dispatch to cart
-                console.log("add to cart", product.id, qty);
+                addItem(product, qty);
+                onClose();
               }}
               className="mt-6 w-full px-6 py-3 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
             >

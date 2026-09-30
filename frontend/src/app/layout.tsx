@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { CartProvider } from "@/components/cart/CartProvider";
+import { CartDrawer } from "@/components/cart/CartDrawer";
 
 export const metadata: Metadata = {
   title: {
@@ -19,9 +21,12 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="min-h-screen bg-white text-neutral-900 antialiased">
-        <Navbar />
-        {children}
-        <Footer />
+        <CartProvider>
+          <Navbar />
+          {children}
+          <Footer />
+          <CartDrawer />
+        </CartProvider>
       </body>
     </html>
   );

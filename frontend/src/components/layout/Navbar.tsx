@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
+import { useCart } from "@/components/cart/CartProvider";
 
 export default function Navbar() {
+  const { totalItems, openCart } = useCart();
   return (
     <header className="bg-white border-b border-neutral-200">
       {/* Utility strip */}
@@ -36,12 +40,23 @@ export default function Navbar() {
         </Link>
 
         {/* Cart icon */}
-        <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={openCart}
+          aria-label="Ouvrir le panier"
+          className="relative shrink-0"
+        >
           <ShoppingCart size={20} className="text-neutral-700" />
-          <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-neutral-900 text-white rounded-full">
-            0
-          </span>
-        </div>
+          {totalItems === 0 ? (
+            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-neutral-300 text-neutral-600 rounded-full">
+              0
+            </span>
+          ) : (
+            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-medium bg-neutral-900 text-white rounded-full">
+              {totalItems > 99 ? "99+" : totalItems}
+            </span>
+          )}
+        </button>
       </div>
     </header>
   );

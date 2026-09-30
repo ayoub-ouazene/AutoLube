@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct } from "@/lib/api";
 import { ProductGallery } from "@/components/product/ProductGallery";
+import { AddToCartButton } from "@/components/product/AddToCartButton";
 
 interface Props {
   params: Promise<{ category: string; id: string }>;
@@ -104,24 +105,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Add to cart */}
-          <div className="mt-2">
-            {product.in_stock ? (
-              <button
-                type="button"
-                className="w-full bg-neutral-900 text-white font-medium py-3 rounded-md hover:bg-neutral-700 transition-colors"
-              >
-                Ajouter au panier
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="w-full bg-neutral-200 text-neutral-400 font-medium py-3 rounded-md cursor-not-allowed"
-              >
-                Indisponible
-              </button>
-            )}
-          </div>
+          <AddToCartButton product={product} />
         </div>
       </div>
     </main>
