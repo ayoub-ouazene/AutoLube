@@ -46,7 +46,7 @@ export function ProductModal({
       onClick={onClose}
     >
       <div
-        className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-md relative"
+        className="relative bg-white max-w-4xl w-full max-h-[92vh] rounded-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -59,7 +59,7 @@ export function ProductModal({
           <X size={18} strokeWidth={2} />
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 p-4 md:p-5">
           {/* LEFT: gallery */}
           <div>
             <ProductGallery product={product} />
@@ -70,7 +70,7 @@ export function ProductModal({
             <p className="text-xs uppercase tracking-wide text-neutral-500">
               {product.brand}
             </p>
-            <h2 className="text-2xl font-semibold text-neutral-900 mt-1">
+            <h2 className="text-xl font-semibold text-neutral-900 mt-1">
               {product.name}
             </h2>
 
@@ -84,11 +84,11 @@ export function ProductModal({
               </span>
             )}
 
-            <p className="text-3xl font-semibold text-neutral-900 mt-4">
+            <p className="text-2xl font-semibold text-neutral-900 mt-3">
               {formatDA(product.price)}
             </p>
 
-            <dl className="mt-6 border-t border-neutral-200 pt-4 grid grid-cols-2 gap-y-2 text-sm">
+            <dl className="mt-4 border-t border-neutral-200 pt-3 grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-neutral-500">Viscosité</dt>
               <dd className="text-neutral-900">{product.viscosity ?? "—"}</dd>
               <dt className="text-neutral-500">Conditionnement</dt>
@@ -98,7 +98,7 @@ export function ProductModal({
             </dl>
 
             {/* Quantity selector */}
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <span className="text-sm text-neutral-700">Quantité</span>
               <div className="flex items-center border border-neutral-300 rounded-md">
                 <button
@@ -131,7 +131,7 @@ export function ProductModal({
                 addItem(product, qty, { openDrawer: openDrawerOnAdd });
                 onClose();
               }}
-              className="mt-6 w-full px-6 py-3 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
+              className="mt-4 w-full px-6 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
             >
               {product.in_stock ? "Ajouter au panier" : "Indisponible"}
             </button>
