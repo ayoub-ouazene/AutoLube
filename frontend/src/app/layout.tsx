@@ -4,6 +4,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { ChatProvider } from "@/components/chat/ChatProvider";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export const metadata: Metadata = {
   title: {
@@ -22,10 +24,13 @@ export default function RootLayout({
     <html lang="fr">
       <body className="min-h-screen bg-white text-neutral-900 antialiased">
         <CartProvider>
-          <Navbar />
-          {children}
-          <Footer />
-          <CartDrawer />
+          <ChatProvider>
+            <Navbar />
+            {children}
+            <Footer />
+            <CartDrawer />
+            <ChatWidget />
+          </ChatProvider>
         </CartProvider>
       </body>
     </html>

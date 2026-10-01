@@ -137,7 +137,7 @@ export default function CheckoutPage() {
             Confirmation WhatsApp obligatoire
           </p>
           <p className="text-sm mt-1">
-            Votre commande ne sera <strong>traitée qu'après confirmation via WhatsApp</strong>.
+            Votre commande ne sera <strong>traitée qu&apos;après confirmation via WhatsApp</strong>.
             Sans ce message, elle sera automatiquement ignorée.
           </p>
         </div>
@@ -160,13 +160,13 @@ export default function CheckoutPage() {
                 href="/"
                 className="inline-block px-6 py-3 border border-neutral-300 text-sm font-medium text-neutral-900 rounded-md hover:bg-neutral-100 transition-colors"
               >
-                J'ai confirmé — Retour à l'accueil
+                J&apos;ai confirmé — Retour à l&apos;accueil
               </Link>
             )}
           </div>
 
           <p className="text-xs text-neutral-500 mt-3 text-center">
-            Un message pré-rempli s'ouvrira dans WhatsApp avec les détails de votre commande.
+            Un message pré-rempli s&apos;ouvrira dans WhatsApp avec les détails de votre commande.
             Envoyez-le tel quel pour valider.
           </p>
         </div>
