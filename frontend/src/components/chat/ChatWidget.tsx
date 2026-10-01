@@ -6,9 +6,9 @@ import { useChat } from "./ChatProvider";
 import { ChatMessageBubble } from "./ChatMessage";
 
 const EXAMPLES = [
-  "Huile moteur pour VW Golf VII 2016",
-  "Huile de boîte pour Dacia Duster 2018",
-  "Quel filtre à huile pour Peugeot 208 ?",
+  "Huile moteur",
+  "Huile de boîte",
+  "Filtre à huile",
 ];
 
 export function ChatWidget() {
@@ -60,7 +60,14 @@ export function ChatWidget() {
 
       {/* Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-5 z-40 w-[380px] max-w-[calc(100vw-2.5rem)] h-[560px] max-h-[calc(100vh-7rem)] bg-white border border-neutral-200 rounded-lg shadow-xl flex flex-col">
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={close}
+        >
+          <div
+            className="relative bg-white border border-neutral-200 rounded-lg shadow-xl w-full max-w-3xl h-[85vh] max-h-[720px] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header */}
           <div className="border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
             <div>
@@ -69,14 +76,24 @@ export function ChatWidget() {
               </p>
               <p className="text-xs text-neutral-500">Posez votre question</p>
             </div>
-            <button
-              type="button"
-              onClick={reset}
-              aria-label="Nouvelle conversation"
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500"
-            >
-              <RotateCcw size={16} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={reset}
+                aria-label="Nouvelle conversation"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500"
+              >
+                <RotateCcw size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={close}
+                aria-label="Fermer"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Body */}
@@ -150,6 +167,7 @@ export function ChatWidget() {
               <Send size={16} />
             </button>
           </div>
+        </div>
         </div>
       )}
     </>

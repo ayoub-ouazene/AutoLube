@@ -22,7 +22,7 @@ export function ChatProductCards({ products }: { products: ChatProduct[] }) {
             onClick={() => setSelected(p)}
             className="w-40 shrink-0 border border-neutral-200 bg-white rounded-md overflow-hidden cursor-pointer text-left"
           >
-            <div className="aspect-square bg-neutral-100 relative">
+            <div className="h-24 relative bg-neutral-100">
               {p.image_front_url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- remote URLs, next.config.ts can't be changed
                 <img
@@ -44,6 +44,11 @@ export function ChatProductCards({ products }: { products: ChatProduct[] }) {
               <p className="text-sm font-medium text-neutral-900 mt-1">
                 {formatDA(p.price)}
               </p>
+              <div className="mt-1 flex justify-end">
+                <span className="text-[10px] text-neutral-500 underline underline-offset-2">
+                  Plus de détails
+                </span>
+              </div>
             </div>
           </button>
         ))}
@@ -53,6 +58,7 @@ export function ChatProductCards({ products }: { products: ChatProduct[] }) {
         <ProductModal
           product={selected as unknown as Product}
           onClose={() => setSelected(null)}
+          openDrawerOnAdd={false}
         />
       )}
     </>

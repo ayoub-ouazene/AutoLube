@@ -4,6 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { CartToast } from "@/components/cart/CartToast";
 import { ChatProvider } from "@/components/chat/ChatProvider";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             {children}
             <Footer />
             <CartDrawer />
+            <CartToast />
             <ChatWidget />
           </ChatProvider>
         </CartProvider>

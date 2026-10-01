@@ -6,16 +6,19 @@ import type { Product } from "@/lib/types";
 import { ProductGallery } from "./ProductGallery";
 import { useCart } from "@/components/cart/CartProvider";
 
-interface Props {
-  product: Product;
-  onClose: () => void;
-}
-
 function formatDA(n: number): string {
   return `${n.toLocaleString("fr-DZ")} DA`;
 }
 
-export function ProductModal({ product, onClose }: Props) {
+export function ProductModal({
+  product,
+  onClose,
+  openDrawerOnAdd = true,
+}: {
+  product: Product;
+  onClose: () => void;
+  openDrawerOnAdd?: boolean;
+}) {
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
 
@@ -125,7 +128,7 @@ export function ProductModal({ product, onClose }: Props) {
               type="button"
               disabled={!product.in_stock}
               onClick={() => {
-                addItem(product, qty);
+                addItem(product, qty, { openDrawer: openDrawerOnAdd });
                 onClose();
               }}
               className="mt-6 w-full px-6 py-3 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
