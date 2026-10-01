@@ -143,35 +143,33 @@ export default function CheckoutPage() {
         </div>
 
         {/* Primary action */}
-        <div className="mt-6 text-center">
-          <a
-            href={state.data.whatsapp_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setWhatsappOpened(true)}
-            className="inline-block px-6 py-3 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
-          >
-            Confirmer sur WhatsApp
-          </a>
-          <p className="text-xs text-neutral-500 mt-3">
+        <div className="mt-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href={state.data.whatsapp_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setWhatsappOpened(true)}
+              className="inline-block px-6 py-3 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
+            >
+              Confirmer sur WhatsApp
+            </a>
+
+            {whatsappOpened && (
+              <Link
+                href="/"
+                className="inline-block px-6 py-3 border border-neutral-300 text-sm font-medium text-neutral-900 rounded-md hover:bg-neutral-100 transition-colors"
+              >
+                J'ai confirmé — Retour à l'accueil
+              </Link>
+            )}
+          </div>
+
+          <p className="text-xs text-neutral-500 mt-3 text-center">
             Un message pré-rempli s'ouvrira dans WhatsApp avec les détails de votre commande.
             Envoyez-le tel quel pour valider.
           </p>
         </div>
-
-        {whatsappOpened && (
-          <div className="mt-6 pt-6 border-t border-neutral-200 text-center">
-            <p className="text-sm text-neutral-700 mb-3">
-              Vous avez envoyé le message WhatsApp ?
-            </p>
-            <Link
-              href="/"
-              className="inline-block px-6 py-2.5 border border-neutral-300 text-sm font-medium text-neutral-900 rounded-md hover:bg-neutral-100 transition-colors"
-            >
-              Oui, j'ai confirmé — Retour à l'accueil
-            </Link>
-          </div>
-        )}
       </main>
     );
   }
