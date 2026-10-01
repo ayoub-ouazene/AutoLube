@@ -49,3 +49,22 @@ export function getProducts(params?: ProductListParams): Promise<ProductListResp
 export function getProduct(category: string, id: number): Promise<Product> {
   return apiGet<Product>(`/products/${category}/${id}`);
 }
+
+export async function apiPost<T>(
+  path: string,
+  body: unknown
+): Promise<T> {
+  const base = getBaseUrl();
+  const relativePath = path.startsWith("/") ? path.slice(1) : path;
+  const url = new URL(relativePath, base);
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
