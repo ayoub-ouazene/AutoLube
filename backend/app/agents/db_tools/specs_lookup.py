@@ -6,6 +6,7 @@ from app.db.session import SessionLocal
 from app.db.models.tables import Oil_Engine_Cache, Transmission_Oil_Cache
 from app.agents.schemas import SpecsLookupInput
 import re
+import time
 
 
 
@@ -117,6 +118,7 @@ def specs_lookup(
       { "status": "not_found" }
       { "status": "error", "reason": "..." }
     """
+    _t = time.perf_counter()
     fluid = (fluid_type or "").lower()
 
     try:
@@ -125,10 +127,12 @@ def specs_lookup(
                 row = _query_engine_cache(session, brand, model, year, engine)
                 
                 if row is None:
+                    print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (not_found)")
                     return {"status": "not_found"}
 
                 print("hit the cache")
                 print(f"the row of the db : {_ser_engine(row)}")
+                print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (found)")
                 
                 return {"status": "found", "specs": _ser_engine(row)}
 
@@ -138,13 +142,17 @@ def specs_lookup(
                 )
                 
                 if row is None:
+                    print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (not_found)")
                     return {"status": "not_found"}
                 
                 print("hit the cache")
                 print(f"the row of the db : {_ser_transmission(row)}")
+                print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (found)")
                 return {"status": "found", "specs": _ser_transmission(row)}
 
+            print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (error)")
             return {"status": "error", "reason": f"Unsupported fluid type: {fluid_type}"}
 
     except Exception as e:
+        print(f"[TIMING] specs_lookup: {time.perf_counter() - _t:.3f}s (error)")
         return {"status": "error", "reason": f"DB error: {e}"}

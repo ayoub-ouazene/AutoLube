@@ -21,13 +21,37 @@ from app.core.rate_limit import (
 
 install_uvicorn_duration_patch()
 
+async def _db_keepalive():
+    import asyncio
+    from sqlalchemy import text
+    from app.db.session import SessionLocal
+    while True:
+        try:
+            with SessionLocal() as s:
+                s.execute(text("SELECT 1"))
+        except Exception as e:
+            print(f"[keepalive] ping failed: {e}")
+        await asyncio.sleep(180)  # every 3 minutes
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[startup] AutoLube API starting up")
     cleanup_task = start_cleanup_task()
+    
+    # Start DB keep-alive task
+    import asyncio
+    keepalive_task = asyncio.create_task(_db_keepalive())
+    print("[startup] DB keep-alive task started")
+    
     try:
         yield
     finally:
+        keepalive_task.cancel()
+        try:
+            await keepalive_task
+        except asyncio.CancelledError:
+            print("[shutdown] DB keep-alive task stopped")
+        
         await stop_cleanup_task(cleanup_task)
         print("[shutdown] Disposing DB engine")
         engine.dispose()

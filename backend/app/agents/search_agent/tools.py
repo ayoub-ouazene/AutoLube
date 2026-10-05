@@ -298,8 +298,7 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
 
         queries = [
             f"{car_gb} boite de vitesses huile preconisation specification",
-            f"{car_gb_alt} transmission gearbox fluid specification recommendation",
-            f"{gearbox_code} {engine_part} boite {trans_label} de vitesses huile recommandee capacite".strip(),
+            f"{car_gb_alt} transmission gearbox fluid specification",
         ]
 
 
@@ -312,15 +311,13 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
         car_info_alt = f"{base_alt} {engine}".strip()
         if is_diesel and year >= 2009:
             queries = [
-                f"{car_info} contenance carter huile norme OEM",
-                f"{car_info_alt} engine oil capacity viscosity specification ",
-                f"{engine} engine oil capacity viscosity litres specification",
+                f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
+                f"{car_info_alt} engine oil capacity viscosity specification DPF",
             ]
         else:
             queries = [
                 f"{car_info} contenance carter huile norme OEM",
                 f"{car_info_alt} engine oil capacity viscosity specification",
-                f"{engine} engine oil capacity viscosity litres specification",
             ]
 
     # 4. Fallback
@@ -330,7 +327,6 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
         queries = [
             f"{base} {fluid_type} specs",
             f"{base_alt} {fluid_type} specification",
-            f"{engine} {fluid_type} capacity viscosity specification",
         ]
 
 

@@ -7,6 +7,7 @@ from app.db.models.tables import (
     Oil_Engine_Item,
     Oil_Transmission_Item,
 )
+import time
 
 from app.agents.schemas import StockLookupInput
 from app.services.product_service import _serialize as _serialize_product
@@ -50,10 +51,14 @@ OEM_ALIASES = {
 # ---------- serializers ----------
 
 def _ser_engine(item) -> dict:
-    return _serialize_product(item, "engine_oil")
+    result = _serialize_product(item, "engine_oil")
+    result["match_quality"] = getattr(item, "_match_quality", "full")
+    return result
 
 def _ser_transmission(item) -> dict:
-    return _serialize_product(item, "gearbox_oil")
+    result = _serialize_product(item, "gearbox_oil")
+    result["match_quality"] = getattr(item, "_match_quality", "full")
+    return result
 
 import re
 
@@ -91,8 +96,14 @@ def _spec_variants(spec: str) -> list[str]:
 
 # ---------- queries ----------
 
+def _mark_match_quality(rows, oem_was_used: bool):
+    for row in rows:
+        row._match_quality = "full" if oem_was_used else "viscosity_only"
+    return rows
+
 def _query_engine_oil(session, spec: str, visc: str):
     stmt = select(Oil_Engine_Item).where(Oil_Engine_Item.quantity > 0)
+    oem_used = bool(spec)
 
     # Match OEM OR API/ACEA, since the search agent may hand us either
     
@@ -107,12 +118,14 @@ def _query_engine_oil(session, spec: str, visc: str):
     if visc:
         stmt = stmt.where(Oil_Engine_Item.viscosity == visc.lower())
 
-    return session.scalars(stmt.order_by(Oil_Engine_Item.price)).all()
+    rows = session.scalars(stmt.order_by(Oil_Engine_Item.price)).all()
+    return _mark_match_quality(rows, oem_used)
 
 
 
 def _query_gearbox_oil(session, spec: str, visc: str):
     stmt = select(Oil_Transmission_Item).where(Oil_Transmission_Item.quantity > 0)
+    oem_used = bool(spec)
 
     variants = _spec_variants(spec)
     if variants:
@@ -122,7 +135,8 @@ def _query_gearbox_oil(session, spec: str, visc: str):
     if visc:
         stmt = stmt.where(Oil_Transmission_Item.viscosity == visc.lower())
 
-    return session.scalars(stmt.order_by(Oil_Transmission_Item.price)).all()
+    rows = session.scalars(stmt.order_by(Oil_Transmission_Item.price)).all()
+    return _mark_match_quality(rows, oem_used)
 
 
 
@@ -139,11 +153,13 @@ def stock_lookup(fluid_type: str, oem_specification: str = "", viscosity: str = 
 
     Call ONLY after you have a specification value. Do not call it with empty inputs.
     """
+    _t = time.perf_counter()
     fluid = (fluid_type or "").lower()
     spec = (oem_specification or "").strip()
     visc = (viscosity or "").strip()
 
     if not spec and not visc:
+        print(f"[TIMING] stock_lookup: {time.perf_counter() - _t:.3f}s (error)")
         return {"status": "error", "reason": "No specification or viscosity provided."}
 
     try:
@@ -157,14 +173,18 @@ def stock_lookup(fluid_type: str, oem_specification: str = "", viscosity: str = 
                 products = [_ser_transmission(r) for r in rows]
 
             else:
+                print(f"[TIMING] stock_lookup: {time.perf_counter() - _t:.3f}s (error)")
                 return {"status": "error", "reason": f"Unsupported fluid type: {fluid_type}"}
             
             print("db query executed for stock lookup")
 
     except Exception as e:
+        print(f"[TIMING] stock_lookup: {time.perf_counter() - _t:.3f}s (error)")
         return {"status": "error", "reason": f"DB error: {e}"}
 
     if not products:
+        print(f"[TIMING] stock_lookup: {time.perf_counter() - _t:.3f}s (no_match)")
         return {"status": "no_match", "products": [], "reason": "No matching product in stock."}
 
+    print(f"[TIMING] stock_lookup: {time.perf_counter() - _t:.3f}s (ok)")
     return {"status": "ok", "products": products}

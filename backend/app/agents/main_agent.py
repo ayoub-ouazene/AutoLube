@@ -1,240 +1,191 @@
-﻿from app.agents.prompts import MAIN_AGENT_SYSTEM_PROMPT
-
-from app.core.llm_pool import load_keys_from_env, run_with_failover
-from app.core.exceptions import (
-    AppError,
-    ProviderTimeoutError,
-    ProviderUnavailableError,
-    RateLimitError,
-)
-
-from langchain.agents import create_agent
-from  app.agents.db_tools.stock_lookup import stock_lookup
-from langchain_core.messages import HumanMessage , SystemMessage  , AIMessage
-import os 
+import time
 from pathlib import Path
+
 from dotenv import load_dotenv
-from app.agents.search_agent.agent import use_search_agent
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agents.db_tools.specs_lookup import specs_lookup
-
-
-import json
-
+from app.agents.db_tools.stock_lookup import stock_lookup
+from app.agents.extraction import extract_intent
+from app.agents.formatter import format_reply
+from app.agents.search_agent.agent import use_search_agent
+from app.core.exceptions import AppError, ProviderTimeoutError, ProviderUnavailableError, RateLimitError
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
-
-pool = load_keys_from_env()
-
+MAX_HISTORY = 8
 
 
-TOOLS = [use_search_agent, stock_lookup , specs_lookup]
-
-
-def _parse_tool_payload(content) -> dict | None:
-    """
-    ToolMessage content can be a dict (native) or a JSON string (older
-    LangChain versions). Return the parsed dict, or None.
-    """
-    if isinstance(content, dict):
-        return content
-    if isinstance(content, str):
-        try:
-            return json.loads(content)
-        except (json.JSONDecodeError, TypeError):
-            return None
-    return None
-
-
-def _extract_products_from_messages(messages: list) -> list[dict]:
-    """
-    Walk the message list, collect every product returned by any
-    stock_lookup ToolMessage with status "ok", deduplicate by
-    (category, id), sort by price ascending.
-    """
-    # Map each tool_call_id to the name of the tool that was called.
-    call_id_to_name: dict[str, str] = {}
-    for m in messages:
-        for call in (getattr(m, "tool_calls", None) or []):
-            cid = call.get("id")
-            name = call.get("name")
-            if cid and name:
-                call_id_to_name[cid] = name
-
-    seen: set[tuple[str, int]] = set()
-    products: list[dict] = []
-
-    for m in messages:
-        if type(m).__name__ != "ToolMessage":
-            continue
-        cid = getattr(m, "tool_call_id", None)
-        if call_id_to_name.get(cid) != "stock_lookup":
-            continue
-
-        payload = _parse_tool_payload(m.content)
-        if not isinstance(payload, dict) or payload.get("status") != "ok":
-            continue
-
-        for prod in payload.get("products", []) or []:
-            key = (prod.get("category"), prod.get("id"))
-            if key in seen:
-                continue
-            seen.add(key)
-            products.append(prod)
-
-    products.sort(key=lambda p: p.get("price", 0))
-    return products
-
-def _translate_llm_error(e: Exception) -> AppError:
-    s = str(e).lower()
-    if "429" in s or "rate" in s and "limit" in s or "tpm" in s or "rpm" in s:
+def _translate_llm_error(error: Exception) -> AppError:
+    text = str(error).lower()
+    if "429" in text or ("rate" in text and "limit" in text) or "tpm" in text or "rpm" in text:
         return RateLimitError()
-    if "timeout" in s or "timed out" in s:
+    if "timeout" in text or "timed out" in text:
         return ProviderTimeoutError()
-    if "503" in s or "502" in s or "upstream" in s or "overloaded" in s:
+    if any(value in text for value in ("503", "502", "upstream", "overloaded")):
         return ProviderUnavailableError()
     return AppError()
 
-def invoke_main_agent(messages):
-    def _run(model):
-        agent = create_agent(
-            model=model,
-            tools=TOOLS,
-            system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-        )
-        return agent.invoke({"messages": messages})
-    return run_with_failover(pool, _run)
 
-MAX_HISTORY = 8   
+def _normalize_specs(specs: dict) -> dict:
+    """Return all supported spec fields in nested primary/alternatives form."""
+    def to_nested(value):
+        if value is None:
+            return {"primary": [], "alternatives": []}
+        if isinstance(value, str):
+            return {"primary": [value] if value else [], "alternatives": []}
+        if isinstance(value, list):
+            return {"primary": value, "alternatives": []}
+        if isinstance(value, dict) and "primary" in value:
+            return {
+                "primary": value.get("primary") or [],
+                "alternatives": value.get("alternatives") or [],
+            }
+        return {"primary": [], "alternatives": []}
 
-
-def process_turn(user_message: str, history: list, current_vehicle: dict):
-    """
-    Process a single user message through the main agent.
-    Returns (reply_text: str, updated_history: list, updated_vehicle: dict,
-    products: list[dict]).
-    `products` is a list of dicts matching the public ProductOut shape
-    (empty if no stock_lookup succeeded, or if the fluid was Oil Filter /
-    Brake Fluid which never reach this pipeline).
-    Pure function with respect to inputs - does not read stdin, does not print.
-    """
-    chat_history = list(history)
-    chat_history.append(HumanMessage(content=user_message))
-
-    # Build the payload: ephemeral vehicle context + trimmed history
-    payload = []
-    if current_vehicle:
-        payload.append(SystemMessage(
-            content=(
-                "Contexte v\u00e9hicule actuel (\u00e0 utiliser pour r\u00e9f\u00e9rence ; "
-                "r\u00e9initialiser si l'utilisateur mentionne un autre v\u00e9hicule) :\n"
-                f"{current_vehicle}"
-            )
-        ))
-    payload.extend(chat_history[-MAX_HISTORY:])
-
-    try:
-        response = invoke_main_agent(payload)
-    except AppError:
-        raise
-    except Exception as e:
-        raise _translate_llm_error(e) from e
-    response_messages = response["messages"]
-
-    # Update the persistent vehicle state from this turn's tool call (if any)
-    new_args = extract_vehicle_from_tool_call(response_messages)
-    current_vehicle = update_vehicle_state(current_vehicle, new_args)
-
-    # Extract products recommended in this turn (may be empty)
-    products = _extract_products_from_messages(response_messages)
-
-    # Keep only the AI's final reply in history - drop tool-call plumbing
-    ai_reply = response_messages[-1]
-    chat_history.append(ai_reply)
-    chat_history = _trim_history(chat_history[-MAX_HISTORY:])
-
-    last_response = ai_reply.content
-    if isinstance(last_response, list):
-        last_response = "".join(
-            b.get("text", "") for b in last_response if isinstance(b, dict)
-        )
-
-    return last_response, chat_history, current_vehicle, products
+    return {
+        "oem_specification": to_nested(specs.get("oem_specification")),
+        "capacity_liters": to_nested(specs.get("capacity_liters")),
+        "viscosity": to_nested(specs.get("viscosity")),
+    }
 
 
-def extract_vehicle_from_tool_call(response_messages):
-    """Scan the turn's messages for a use_search_agent call, return its args dict."""
-    for msg in reversed(response_messages):
-        for call in getattr(msg, "tool_calls", None) or []:
-            if call["name"] == "use_search_agent":
-                return call["args"]
-    return None
+def _first_spec(specs_data: dict, key: str) -> str:
+    value = specs_data.get(key) or {}
+    primary = value.get("primary") or []
+    return primary[0] if primary else ""
 
-def update_vehicle_state(current_vehicle, new_args):
-    """Reset if brand/model changed; otherwise merge non-empty fields."""
-    if not new_args:
+
+def _vehicle_summary(params: dict) -> str:
+    values = [str(params[field]) for field in ("brand", "model", "year", "engine", "gearbox_ref") if params.get(field)]
+    return " ".join(values) if values else "Véhicule"
+
+
+def _build_missing_params_question(missing: list[str]) -> str:
+    labels = {"year": "l'année", "engine": "le code moteur", "gearbox_ref": "le code de boîte", "transmission_type": "le type de transmission"}
+    requested = [labels[item] for item in missing if item in labels]
+    return f"Il me manque : {', '.join(requested)}. Pouvez-vous compléter ?" if requested else "Pouvez-vous préciser les informations de votre véhicule ?"
+
+
+def _update_vehicle_state(current_vehicle: dict | None, params: dict) -> dict:
+    current_vehicle = current_vehicle or {}
+    if not params:
         return current_vehicle
     if not current_vehicle:
-        return dict(new_args)
-
-    brand_changed = new_args.get("brand") and new_args["brand"] != current_vehicle.get("brand")
-    model_changed = new_args.get("model") and new_args["model"] != current_vehicle.get("model")
-
-    if brand_changed or model_changed:
-        return dict(new_args)
-
+        return dict(params)
+    changed = any(params.get(field) and params[field] != current_vehicle.get(field) for field in ("brand", "model"))
+    if changed:
+        return dict(params)
     merged = dict(current_vehicle)
-    for k, v in new_args.items():
-        if v not in ("", 0, None):
-            merged[k] = v
+    merged.update({key: value for key, value in params.items() if value not in ("", None, 0)})
     return merged
 
 
-def _trim_history(history):
-    """Keep only HumanMessage and final AIMessage (no tool calls).
-    Drops every ToolMessage and every AIMessage that carries tool_calls."""
-    kept = []
-    for m in history:
-        if isinstance(m, HumanMessage):
-            kept.append(m)
-        elif isinstance(m, AIMessage) and not getattr(m, "tool_calls", None):
-            kept.append(m)
-    return kept
+def _trim_history(history: list) -> list:
+    return [message for message in history if isinstance(message, (HumanMessage, AIMessage))]
+
+
+def process_turn(user_message: str, history: list, current_vehicle: dict):
+    """Run one turn through the deterministic two-LLM-call pipeline."""
+    started = time.perf_counter()
+    chat_history = list(history)
+    chat_history.append(HumanMessage(content=user_message))
+    try:
+        intent = extract_intent(user_message, chat_history, current_vehicle or {})
+        flow = intent.get("flow", "conversational")
+        params = intent.get("params") or {}
+        current_vehicle = _update_vehicle_state(current_vehicle, params)
+
+        if flow == "conversational":
+            reply, products = intent.get("reply_hint") or "Bonjour ! Comment puis-je vous aider ?", []
+        elif flow == "filter_redirect":
+            reply, products = "Je me spécialise dans les huiles moteur et de boîte. Pour un filtre à huile, consultez notre catalogue.", []
+        elif flow == "brake_redirect":
+            reply, products = "Pour le liquide de frein, veuillez consulter notre catalogue ou contacter le magasin.", []
+        elif flow == "out_of_scope":
+            reply, products = "Je suis spécialisé dans les huiles moteur et de boîte. Pour les autres produits, consultez notre catalogue.", []
+        elif flow == "missing_params":
+            reply, products = _build_missing_params_question(intent.get("missing", [])), []
+        else:
+            fluid_type = params.get("fluid_type", "")
+            specs_source, specs_data = None, None
+            warnings, clarifications, verification = [], [], None
+            rationale, confidence = "", "medium"
+            specs_result = specs_lookup.invoke(params)
+            status = specs_result.get("status") if isinstance(specs_result, dict) else None
+            if status == "found":
+                specs_source = "cache"
+                specs_data = _normalize_specs(specs_result.get("specs") or {})
+            elif status in ("not_found", "error"):
+                specs_source = "search"
+                search_result = use_search_agent.invoke(params)
+                search_status = search_result.get("status") if isinstance(search_result, dict) else None
+                if search_status == "ok":
+                    specs_data = _normalize_specs(search_result.get("specs") or {})
+                    warnings = search_result.get("warnings", []) or []
+                    clarifications = search_result.get("clarifications", []) or []
+                    verification = search_result.get("verification")
+                    rationale = search_result.get("rationale", "")
+                    confidence = search_result.get("confidence", "medium")
+                elif search_status == "needs_more_info":
+                    reply = search_result.get("reason") or "Pouvez-vous préciser le modèle exact ?"
+                    chat_history.append(AIMessage(content=reply))
+                    chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+                    return reply, chat_history, current_vehicle, []
+                elif search_status == "no_data":
+                    reply = search_result.get("reason") or "Aucune donnée technique fiable n'a été trouvée pour ce véhicule."
+                    chat_history.append(AIMessage(content=reply))
+                    chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+                    return reply, chat_history, current_vehicle, []
+                else:
+                    reply = "Le service de recherche est momentanément indisponible. Veuillez réessayer."
+                    chat_history.append(AIMessage(content=reply))
+                    chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+                    return reply, chat_history, current_vehicle, []
+            oem_value = _first_spec(specs_data, "oem_specification") if specs_data else ""
+            visc_value = _first_spec(specs_data, "viscosity") if specs_data else ""
+
+            products_status, products = "none", []
+            if specs_data and (oem_value or visc_value):
+                stock_result = stock_lookup.invoke({
+                    "oem_specification": oem_value,
+                    "viscosity": visc_value,
+                    "capacity_liters": specs_data.get("capacity_liters"),
+                    "fluid_type": fluid_type,
+                })
+                products_status = stock_result.get("status", "none")
+                products = stock_result.get("products", []) if products_status == "ok" else []
+            elif specs_data:
+                products_status = "no_match"
+            reply = format_reply(
+                vehicle_summary=_vehicle_summary(params), fluid_type=fluid_type,
+                specs_source=specs_source, specs_data=specs_data,
+                products_status=products_status, products=products,
+                warnings=warnings, clarifications=clarifications,
+                verification=verification, rationale=rationale,
+                confidence=confidence,
+                fallback_message="Les spécifications n'ont pas pu être trouvées." if not specs_data else "",
+            )
+
+        chat_history.append(AIMessage(content=reply))
+        chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+        print(f"[TIMING] process_turn total: {time.perf_counter() - started:.2f}s")
+        return reply, chat_history, current_vehicle, products
+    except AppError:
+        raise
+    except Exception as error:
+        raise _translate_llm_error(error) from error
 
 
 def run_chat_session():
-    # Store message history for multi-turn conversation
-    chat_history = []
-    current_vehicle = {}
-    
+    chat_history, current_vehicle = [], {}
     print("--- AutoLube AI Assistant Initialized ---")
-    print(
-        "Bonjour ! Je suis l'assistant AutoLube. Je peux vous aider avec :\n"
-        "  \u2022 l'huile moteur\n"
-        "  \u2022 l'huile de bo\u00eete (transmission)\n"
-        "  \u2022 le filtre \u00e0 huile\n"
-        "  \u2022 le liquide de frein\n\n"
-        "Pour commencer, indiquez-moi le v\u00e9hicule (marque, mod\u00e8le, ann\u00e9e, "
-        "code moteur ou bo\u00eete) et le type de fluide souhait\u00e9.\n"
-    )
+    print("Bonjour ! Je peux vous aider avec l'huile moteur et l'huile de boîte.")
     print("Type 'exit' to quit.\n")
-
-
     while True:
         user_input = input("Customer: ")
-        if user_input.lower() in ["exit", "quit"]:
+        if user_input.lower() in ("exit", "quit"):
             break
-
-        last_response, chat_history, current_vehicle, _products = process_turn(
-            user_message=user_input,
-            history=chat_history,
-            current_vehicle=current_vehicle,
-        )
-        
-        print(f"\nAI Assistant: {last_response}\n")
-        
-        if _products:
-            print(f"\n[DEBUG] {len(_products)} produit(s) recommandé(s):")
-            for p in _products:
-                print(f"  - {p['name']} — {p['price']} DA ({p['category']}/{p['id']})")
-
+        reply, chat_history, current_vehicle, products = process_turn(user_input, chat_history, current_vehicle)
+        print(f"\nAI Assistant: {reply}\n")
+        if products:
+            print(f"[DEBUG] {len(products)} produit(s) recommandé(s)")

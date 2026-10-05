@@ -126,6 +126,9 @@ def run_with_failover(pool: KeyPool, fn):
             print(f"[LLM] success with {entry.name}")
             return result
         except Exception as e:
+            if "tool_use_failed" in str(e).lower() or "tool call validation failed" in str(e).lower():
+                print(f"[LLM] non-retryable tool failure on {entry.name}: {e}")
+                raise
             if _is_rate_limit(e):
                 pool.mark_rate_limited(entry, seconds=60)
                 print(f"[LLM] rate-limited on {entry.name}, cooling 60s")
@@ -136,3 +139,65 @@ def run_with_failover(pool: KeyPool, fn):
 
     exc_class = _classify_provider_error(last_error) if last_error else ProviderUnavailableError
     raise exc_class(f"Tous les fournisseurs ont échoué. Dernière erreur : {last_error}")
+
+
+class RotatingChatModel:
+    def __init__(self, pool, model_name: str = "openai/gpt-oss-120b"):
+        self._pool = pool
+        self._model_name = model_name
+        self._clients: dict[str, object] = {}
+
+    def _client_for(self, entry):
+        if entry.api_key in self._clients:
+            return self._clients[entry.api_key]
+        if entry.provider == "groq":
+            c = ChatGroq(model=entry.model, api_key=entry.api_key, temperature=0.0)
+        elif entry.provider == "openrouter":
+            c = ChatOpenAI(
+                model=entry.model, api_key=entry.api_key,
+                base_url="https://openrouter.ai/api/v1", temperature=0.0,
+            )
+        else:
+            raise ValueError(f"Unknown provider: {entry.provider}")
+        self._clients[entry.api_key] = c
+        return c
+
+    def bind_tools(self, tools, **kwargs):
+        return _BoundRotatingModel(self._pool, tools, kwargs, self._clients)
+
+    def invoke(self, messages, **kwargs):
+        entry = self._pool.pick()
+        return self._client_for(entry).invoke(messages, **kwargs)
+
+    async def ainvoke(self, messages, **kwargs):
+        return await self._fresh_model().ainvoke(messages, **kwargs)
+
+
+class _BoundRotatingModel:
+    def __init__(self, pool, tools, bind_kwargs, clients):
+        self._pool = pool
+        self._tools = tools
+        self._bind_kwargs = bind_kwargs
+        self._clients = clients
+
+    def _client_for(self, entry):
+        if entry.api_key in self._clients:
+            return self._clients[entry.api_key]
+        if entry.provider == "groq":
+            c = ChatGroq(model=entry.model, api_key=entry.api_key, temperature=0.0)
+        elif entry.provider == "openrouter":
+            c = ChatOpenAI(
+                model=entry.model, api_key=entry.api_key,
+                base_url="https://openrouter.ai/api/v1", temperature=0.0,
+            )
+        else:
+            raise ValueError(f"Unknown provider: {entry.provider}")
+        self._clients[entry.api_key] = c
+        return c
+
+    def invoke(self, messages, **kwargs):
+        entry = self._pool.pick()
+        return self._client_for(entry).bind_tools(self._tools, **self._bind_kwargs).invoke(messages, **kwargs)
+
+    async def ainvoke(self, messages, **kwargs):
+        return await self._fresh_model().ainvoke(messages, **kwargs)
