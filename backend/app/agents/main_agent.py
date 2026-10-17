@@ -1,4 +1,5 @@
 import time
+import re as _re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,33 +27,56 @@ def _translate_llm_error(error: Exception) -> AppError:
     return AppError()
 
 
-def _normalize_specs(specs: dict) -> dict:
-    """Return all supported spec fields in nested primary/alternatives form."""
-    def to_nested(value):
-        if value is None:
-            return {"primary": [], "alternatives": []}
+def _normalize_specs(payload: dict) -> dict:
+    specs = payload.get("specs") or payload
+    normalized = {}
+    for field in ("oem_specification", "capacity_liters", "viscosity"):
+        value = specs.get(field)
         if isinstance(value, str):
-            return {"primary": [value] if value else [], "alternatives": []}
-        if isinstance(value, list):
-            return {"primary": value, "alternatives": []}
-        if isinstance(value, dict) and "primary" in value:
-            return {
+            normalized[field] = {
+                "primary": [value] if value else [],
+                "alternatives": [],
+            }
+        elif isinstance(value, list):
+            normalized[field] = {"primary": value, "alternatives": []}
+        elif isinstance(value, dict):
+            normalized[field] = {
                 "primary": value.get("primary") or [],
                 "alternatives": value.get("alternatives") or [],
             }
-        return {"primary": [], "alternatives": []}
+        else:
+            normalized[field] = {"primary": [], "alternatives": []}
+    return normalized
 
-    return {
-        "oem_specification": to_nested(specs.get("oem_specification")),
-        "capacity_liters": to_nested(specs.get("capacity_liters")),
-        "viscosity": to_nested(specs.get("viscosity")),
-    }
+
+def _canonical_viscosity(value: str) -> str:
+    """Normalize to SAE format: 5w30 -> 5W-30, 0W20 -> 0W-20."""
+    if not value:
+        return value
+    normalized = str(value).strip().upper()
+    match = _re.match(r"^(\d{1,2})W[-\s]?(\d{2,3})$", normalized)
+    if match:
+        return f"{match.group(1)}W-{match.group(2)}"
+    return normalized
+
+
+def _canonical_oem(value: str) -> str:
+    """Normalize OEM specification letter case while preserving separators."""
+    if not value:
+        return value
+    return str(value).strip().upper()
 
 
 def _first_spec(specs_data: dict, key: str) -> str:
-    value = specs_data.get(key) or {}
-    primary = value.get("primary") or []
-    return primary[0] if primary else ""
+    value = specs_data.get(key)
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        primary = value.get("primary") or []
+        return primary[0] if primary else ""
+    return ""
 
 
 def _vehicle_summary(params: dict) -> str:
@@ -64,6 +88,23 @@ def _build_missing_params_question(missing: list[str]) -> str:
     labels = {"year": "l'année", "engine": "le code moteur", "gearbox_ref": "le code de boîte", "transmission_type": "le type de transmission"}
     requested = [labels[item] for item in missing if item in labels]
     return f"Il me manque : {', '.join(requested)}. Pouvez-vous compléter ?" if requested else "Pouvez-vous préciser les informations de votre véhicule ?"
+
+
+def _missing_labels(missing: list) -> str:
+    labels = {
+        "brand": "la marque",
+        "model": "le modèle",
+        "year": "l'année",
+        "engine": "le code moteur",
+        "gearbox_ref": "la référence de boîte",
+        "transmission_type": "le type de transmission",
+    }
+    parts = [labels.get(item, item) for item in missing]
+    if not parts:
+        return "les informations manquantes"
+    if len(parts) == 1:
+        return parts[0]
+    return ", ".join(parts[:-1]) + " et " + parts[-1]
 
 
 def _update_vehicle_state(current_vehicle: dict | None, params: dict) -> dict:
@@ -104,8 +145,26 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
         elif flow == "out_of_scope":
             reply, products = "Je suis spécialisé dans les huiles moteur et de boîte. Pour les autres produits, consultez notre catalogue.", []
         elif flow == "missing_params":
-            reply, products = _build_missing_params_question(intent.get("missing", [])), []
+            missing = list(intent.get("missing", []))
+            current_vehicle = {
+                **(current_vehicle or {}),
+                **{key: value for key, value in params.items() if value},
+                "_last_missing": missing,
+            }
+            reply, products = _build_missing_params_question(missing), []
+        elif flow == "unresolved_missing_params":
+            labels = _missing_labels(intent.get("missing", []))
+            reply = (
+                f"Sans {labels}, je ne peux pas vous proposer une recommandation fiable. "
+                "Vous pouvez retrouver cette information dans le carnet d'entretien "
+                "du véhicule, auprès du constructeur, ou en contactant notre service "
+                "client AutoLube."
+            )
+            chat_history.append(AIMessage(content=reply))
+            chat_history = _trim_history(chat_history[-MAX_HISTORY:])
+            return reply, chat_history, current_vehicle, []
         else:
+            current_vehicle.pop("_last_missing", None)
             fluid_type = params.get("fluid_type", "")
             specs_source, specs_data = None, None
             warnings, clarifications, verification = [], [], None
@@ -114,13 +173,13 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
             status = specs_result.get("status") if isinstance(specs_result, dict) else None
             if status == "found":
                 specs_source = "cache"
-                specs_data = _normalize_specs(specs_result.get("specs") or {})
+                specs_data = specs_result.get("specs")
             elif status in ("not_found", "error"):
                 specs_source = "search"
                 search_result = use_search_agent.invoke(params)
                 search_status = search_result.get("status") if isinstance(search_result, dict) else None
                 if search_status == "ok":
-                    specs_data = _normalize_specs(search_result.get("specs") or {})
+                    specs_data = search_result.get("specs")
                     warnings = search_result.get("warnings", []) or []
                     clarifications = search_result.get("clarifications", []) or []
                     verification = search_result.get("verification")
@@ -132,15 +191,43 @@ def process_turn(user_message: str, history: list, current_vehicle: dict):
                     chat_history = _trim_history(chat_history[-MAX_HISTORY:])
                     return reply, chat_history, current_vehicle, []
                 elif search_status == "no_data":
-                    reply = search_result.get("reason") or "Aucune donnée technique fiable n'a été trouvée pour ce véhicule."
+                    print(f"[search_agent] no_data reason: {search_result.get('reason', '')}")
+                    reply = (
+                        "Je n'ai pas trouvé de spécifications techniques fiables pour "
+                        "ce véhicule dans mes sources habituelles. Pour éviter toute "
+                        "erreur sur l'huile à utiliser, je vous invite à vérifier "
+                        "directement dans le carnet d'entretien de votre véhicule, ou "
+                        "à passer en boutique — nous pourrons confirmer la référence "
+                        "exacte ensemble."
+                    )
                     chat_history.append(AIMessage(content=reply))
                     chat_history = _trim_history(chat_history[-MAX_HISTORY:])
                     return reply, chat_history, current_vehicle, []
                 else:
-                    reply = "Le service de recherche est momentanément indisponible. Veuillez réessayer."
+                    reason = search_result.get("reason", "") if isinstance(search_result, dict) else search_result
+                    print(f"[search_agent] error reason: {reason}")
+                    reply = (
+                        "Le service de recherche est momentanément indisponible. "
+                        "Veuillez réessayer dans quelques instants, ou consulter "
+                        "directement le carnet d'entretien de votre véhicule."
+                    )
                     chat_history.append(AIMessage(content=reply))
                     chat_history = _trim_history(chat_history[-MAX_HISTORY:])
                     return reply, chat_history, current_vehicle, []
+            if specs_data is not None:
+                specs_data = _normalize_specs(specs_data)
+                for field in ("oem_specification", "viscosity"):
+                    block = specs_data.get(field) or {}
+                    for bucket in ("primary", "alternatives"):
+                        items = block.get(bucket) or []
+                        # Drop empty / whitespace-only entries so the formatter's
+                        # "non précisée" fallback fires.
+                        items = [item for item in items if item and str(item).strip()]
+                        if field == "viscosity":
+                            block[bucket] = [_canonical_viscosity(item) for item in items]
+                        else:
+                            block[bucket] = [_canonical_oem(item) for item in items]
+                    specs_data[field] = block
             oem_value = _first_spec(specs_data, "oem_specification") if specs_data else ""
             visc_value = _first_spec(specs_data, "viscosity") if specs_data else ""
 

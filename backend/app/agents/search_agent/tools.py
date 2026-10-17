@@ -7,24 +7,97 @@ from tavily import TavilyClient
 from ddgs import DDGS
 from pydantic import BaseModel, Field
 from langchain_groq import ChatGroq
+from firecrawl import Firecrawl
+from langchain_core.messages import HumanMessage
 import trafilatura
 import requests
 import re
+import re as _re
 from urllib.parse import urlparse
 import time 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.core.apis import small_groq_model
 
-from app.agents.schemas import SearchInput 
+from app.agents.prompts import PAGE_EXTRACTION_PROMPT
+from app.agents.schemas import SearchInput
+from app.core.llm_pool import load_keys_from_env, run_with_failover
 
 load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 apikey = os.getenv("TAVILY_API_KEY")
+_firecrawl_client = Firecrawl(api_key=os.getenv("FIRECRAWL_API_KEY"))
 
 
 
 tavily_client = TavilyClient(api_key=apikey)
 
 extractor_llm = small_groq_model
+_page_pool = load_keys_from_env()
+
+_OEM_NORMALIZERS = [
+    (_re.compile(r"\b(?:psa\s*)?b71[\s\-_]*(\d{4})\b", _re.IGNORECASE),
+     lambda match: f"PSA B71 {match.group(1)}"),
+    (_re.compile(r"\bg[\s\-_]*0(\d{2})[\s\-_]*(\d{3})[\s\-_]*([a-z]\d)\b", _re.IGNORECASE),
+     lambda match: f"G 0{match.group(1)} {match.group(2)} {match.group(3).upper()}"),
+    (_re.compile(r"\bvw[\s\-_]*5(\d{2})[\s\-_\.]*((?:\d{2}))\b", _re.IGNORECASE),
+     lambda match: f"VW 5{match.group(1)}.{match.group(2)}"),
+    (_re.compile(r"\bmb[\s\-_]*2(\d{2})[\s\-_\.]*((?:\d{1,2}))\b", _re.IGNORECASE),
+     lambda match: f"MB 2{match.group(1)}.{match.group(2)}"),
+    (_re.compile(r"\b(?:bmw\s*)?ll[\s\-_]*(\d{2})\b", _re.IGNORECASE),
+     lambda match: f"BMW LL-{match.group(1)}"),
+    (_re.compile(r"\brn[\s\-_]*(\d{3,4})\b", _re.IGNORECASE),
+     lambda match: f"RN{match.group(1)}"),
+    (_re.compile(r"\bdexos[\s\-_]*([12])\b", _re.IGNORECASE),
+     lambda match: f"Dexos{match.group(1)}"),
+    (_re.compile(r"\bwss[\s\-_]*m2c[\s\-_]*(\d{3})[\s\-_]*([a-z])\b", _re.IGNORECASE),
+     lambda match: f"WSS-M2C{match.group(1)}-{match.group(2).upper()}"),
+    (_re.compile(r"\b9[\s\._]*55535[\s\-_]*([a-z]{2,4})\b", _re.IGNORECASE),
+     lambda match: f"9.55535-{match.group(1).upper()}"),
+]
+
+
+def _normalize_oem_codes(text: str) -> str:
+    """Canonicalize recognized OEM code shapes; leave other text unchanged."""
+    if not text:
+        return text
+    normalized = text
+    for pattern, rewriter in _OEM_NORMALIZERS:
+        normalized = pattern.sub(rewriter, normalized)
+    return normalized
+
+
+def _fluid_category_from_summary(summary: str) -> str:
+    """Read the page extractor's fluid category, defaulting when absent."""
+    for line in summary.splitlines():
+        if line.upper().startswith("FLUID_CATEGORY:"):
+            value = line.split(":", 1)[1].strip().lower()
+            if value in {"engine_oil", "gearbox_oil", "both", "unrelated"}:
+                return value
+            return "unspecified"
+    return "unspecified"
+
+
+def _extract_page_summary(raw_text: str, car_info: str, fluid_type: str) -> str:
+    """Summarize one scraped page using rotating provider keys."""
+    prompt = PAGE_EXTRACTION_PROMPT.format(
+        car_info=car_info,
+        fluid_type=fluid_type,
+        raw_text=raw_text[:6000],
+    )
+    try:
+        messages = [HumanMessage(content=prompt)]
+
+        def _run(model):
+            return model.invoke(messages)
+
+        response = run_with_failover(_page_pool, _run)
+    except Exception as error:
+        print(f"[per-page extractor failed]: {error}")
+        return ""
+    content = response.content
+    if isinstance(content, list):
+        content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
+    return _normalize_oem_codes(content.strip())
 
 TRUSTED_DOMAINS_COMMON = [
     "castrol.com", "liqui-moly.com", "motul.com",
@@ -35,7 +108,6 @@ TRUSTED_DOMAINS_COMMON = [
 TRUSTED_DOMAINS_ENGINE_OIL = TRUSTED_DOMAINS_COMMON
 
 TRUSTED_DOMAINS_GEARBOX = TRUSTED_DOMAINS_COMMON
-
 
 #################################################################################
 
@@ -142,7 +214,7 @@ def fetch_full_page_content(url: str) -> str:
         "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
     }
     try:
-        response = requests.get(url, headers=headers, timeout=8)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             extracted = trafilatura.extract(
                 response.text, 
@@ -158,10 +230,81 @@ def fetch_full_page_content(url: str) -> str:
     return ""
 
 
+def _fetch_and_extract(url: str, car_info: str, fluid_type: str):
+    """Return (url, clean_content) or (url, None) on failure."""
+    try:
+        content = fetch_full_page_content(url)
+        if not content:
+            return url, None
+        try:
+            return url, extract_specs_from_text(content, car_info, fluid_type)
+        except Exception as error:
+            print(f"[scrape] extractor failed for {url}: {error}")
+            return url, content
+    except Exception as error:
+        print(f"[scrape] fetch failed for {url}: {error}")
+        return url, None
+
+
+def _scrape_and_summarize_parallel(candidates, car_info, fluid_type):
+    """Scrape candidate URLs in parallel and return formatted summaries."""
+    def _scrape_one(url, title, description):
+        full_content = fetch_full_page_content(url)
+        if full_content:
+            summary = _extract_page_summary(full_content, car_info, fluid_type)
+            if summary:
+                return "scraped", url, title, summary
+        if description and len(description) > 80:
+            summary = _extract_page_summary(description, car_info, fluid_type)
+            if summary:
+                return "snippet", url, title, summary
+        return None, url, title, ""
+
+    blocks = []
+    if not candidates:
+        return blocks
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            executor.submit(_scrape_one, url, title, description):
+            (url, title, description)
+            for url, title, description in candidates
+        }
+        for source_number, future in enumerate(as_completed(futures), 1):
+            source_type, url, title, summary = future.result()
+            if summary:
+                fluid_category = _fluid_category_from_summary(summary)
+                blocks.append(
+                    f"=== SOURCE {source_number}: {title} ===\n"
+                    f"URL: {url}\n"
+                    f"FLUID_CATEGORY: {fluid_category}\n"
+                    f"SUMMARY:\n{summary}\n"
+                )
+    return blocks
+
+
+def _append_unverified_snippets(blocks, sanitized_results):
+    """Append search snippets from sanitized result positions 5 through 7."""
+    if len(sanitized_results) < 4:
+        return blocks
+    for source_number, item in enumerate(sanitized_results[4:7], 5):
+        url = item.get("href") or item.get("link") or ""
+        title = item.get("title", "")
+        snippet = item.get("body") or item.get("content") or item.get("snippet") or ""
+        if url and snippet:
+            blocks.append(
+                f"=== SOURCE {source_number}: {title} ===\n"
+                f"URL: {url}\n"
+                "CONTENT (search snippet, unverified):\n"
+                f"{snippet[:500]}\n"
+            )
+    return blocks
+
+
 BLOCKED_BASE_DOMAINS = {
     "amazon", "ebay", "aliexpress", "cdiscount", "walmart",
     "facebook", "instagram", "tiktok", "pinterest", "youtube",
-    "twitter",  "reddit", "linkedin"
+    "twitter", "reddit", "linkedin", "autodoc", "auto-doc", "piecesauto24",
+    "mister-auto", "oscaro", "pieces24", "autodoc24", "carter-cash", "norauto",
 }
 
 
@@ -216,33 +359,71 @@ def tavily_Search(
     gearbox_ref: str = "",
     transmission_type: str = "",
 ) -> str:
-    """Fallback search tool. Use ONLY when ddgs_Search returned an error marker
-    (DDGS_ERROR / DDGS_NO_RESULTS / DDGS_NO_CONTENT) OR when one or more of the
-    target values required for the requested fluid_type are missing from the
-    ddgs_Search output. The required targets depend on the fluid:
-      - Engine Oil  : OEM specification, capacity in liters, viscosity grade.
-      - Gearbox Oil : OEM fluid reference, capacity in liters, viscosity grade.
-     
-    Call at most once per invocation. Both tool outputs remain in context and
-    must be merged, with Tavily's values taking precedence on conflicts."""
-
-    base = f"{brand} {model} {year}".strip()
-    identifier = (gearbox_ref or engine).strip()
-    car_info = f"{base} {identifier}".strip()
-
-    fluid_lower = fluid_type.lower()
-    if any(k in fluid_lower for k in ["boite", "boÃ®te", "gearbox", "transmission"]):
-        query_seed = f"{car_info} boite de vitesses {transmission_type} huile preconisation specification"
-        domains = TRUSTED_DOMAINS_GEARBOX
-
+    """Fallback search that returns per-page summaries like Firecrawl."""
+    car_info = f"{brand} {model} {engine} {year}".strip()
+    car_info_alt = f"{year} {brand} {model} {engine}".strip()
+    fluid_lower = (fluid_type or "").lower()
+    if any(k in fluid_lower for k in ("boite", "boîte", "gearbox", "transmission")):
+        queries = [
+            f"{car_info} huile de boite preconisation specification",
+            f"{car_info_alt} gearbox oil specification OEM reference",
+        ]
+    elif any(k in fluid_lower for k in ("filtre", "filter")):
+        queries = [
+            f"{car_info} filtre a huile reference preconisation",
+            f"{car_info_alt} oil filter reference OEM",
+        ]
     else:
-        query_seed = f"{car_info} contenance carter huile norme OEM"
-        domains = TRUSTED_DOMAINS_ENGINE_OIL
+        queries = [
+            f"{car_info} huile moteur preconisation specification",
+            f"{car_info_alt} engine oil specification OEM",
+        ]
 
-    result = execute_tavily_fallback(car_info, query_seed , domains)
-   
+    raw = []
+    seen_urls = set()
+    for i, query in enumerate(queries):
+        print(f"[Tavily Query {i + 1}/{len(queries)}]: {query}")
+        try:
+            response = tavily_client.search(
+                query=query,
+                max_results=8,
+                search_depth="basic",
+                exclude_domains=[
+                    "amazon.com", "ebay.com", "aliexpress.com",
+                    "facebook.com", "youtube.com", "reddit.com",
+                    "pinterest.com", "tiktok.com", "twitter.com",
+                    "instagram.com", "linkedin.com",
+                ],
+            )
+        except Exception as error:
+            print(f"[Tavily Query {i + 1} failed]: {error}")
+            continue
 
-    return result 
+        results = response.get("results", []) or []
+        print(f"[Tavily] Query {i + 1} returned {len(results)} results.")
+        for item in results:
+            url = item.get("url") or ""
+            title = item.get("title") or ""
+            content = item.get("content") or ""
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                raw.append({"href": url, "title": title, "body": content})
+
+    if not raw:
+        return "TAVILY_NO_RESULTS"
+    sanitized = sanitize_search_results(raw)
+    print(f"[Tavily] Sanitized results: {len(sanitized)}")
+    if not sanitized:
+        return "TAVILY_NO_RESULTS"
+    candidates = [
+        (item["href"], item.get("title", ""), item.get("body", ""))
+        for item in sanitized[:4]
+    ]
+    page_summaries = _scrape_and_summarize_parallel(candidates, car_info, fluid_type)
+    page_summaries = _append_unverified_snippets(page_summaries, sanitized)
+    if not page_summaries:
+        return "TAVILY_NO_SUMMARIES"
+    return "\n\n".join(page_summaries)
 
 
 @tool(args_schema=SearchInput)
@@ -250,6 +431,11 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
     """ Searches for technical automotive specifications, deep-scrapes the top sources,
         and returns a structured, noise-free summary of specs and warnings.
     """
+    fluid_guard = (fluid_type or "").lower()
+    if any(k in fluid_guard for k in ("filtre", "filter")):
+        return "FILTER_NOT_SUPPORTED"
+    if any(k in fluid_guard for k in ("frein", "brake")):
+        return "BRAKE_NOT_SUPPORTED"
 
   
     # Base identifiers (no engine, no gearbox â€” added per branch)
@@ -294,8 +480,6 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
             parts_alt.append(trans_label)
     
         car_gb_alt = " ".join(parts_alt).strip()
-        engine_part = f"{engine}" if engine else ""
-
         queries = [
             f"{car_gb} boite de vitesses huile preconisation specification",
             f"{car_gb_alt} transmission gearbox fluid specification",
@@ -311,8 +495,8 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
         car_info_alt = f"{base_alt} {engine}".strip()
         if is_diesel and year >= 2009:
             queries = [
-                f"{car_info} contenance carter huile norme OEM DPF FAP Low SAPS",
-                f"{car_info_alt} engine oil capacity viscosity specification DPF",
+                f"{car_info} contenance carter huile norme OEM",
+                f"{car_info_alt} engine oil capacity viscosity specification",
             ]
         else:
             queries = [
@@ -363,49 +547,115 @@ def ddgs_Search(brand: str, model: str, year: int,  fluid_type: str , engine: st
     if not results:
         return execute_tavily_fallback(queries[0], car_info)
 
-    scraped_data = []
-    sources_count = 0
-
-    for item in results:
+    candidates = []
+    for item in results[:4]:
         url = item.get("href") or item.get("link") or ""
         title = item.get("title", "")
+        description = item.get("body") or item.get("snippet") or ""
+        if url:
+            candidates.append((url, title, description))
 
-        if not url:
-            continue
-
-        full_content = fetch_full_page_content(url)
-
-        if full_content:
-
-            sources_count+=1 
-            if len(full_content) > 150:
-                try: 
-                    clean_content = extract_specs_from_text(full_content, car_info,fluid_type)
-                except Exception as e:
-                    clean_content = full_content
-                    print(f"Error in extractor Model : {e}")    
-
-            else:
-                clean_content = full_content
-
-            scraped_data.append(
-                f"=== SOURCE {sources_count}: {title} ===\nURL: {url}\nCONTENT:\n{clean_content}\n"
-            )
-
-        if sources_count >= 5:
-            break
-
-    # Snippet Fallback if deep scraping fails
-    if not scraped_data:
-        snippets = []
-        for i, item in enumerate(results[:3]):
-            body_text = item.get("body") or item.get("snippet") or ""
-            snippets.append(f"Snippet {i+1}: {body_text}")
+    page_summaries = _scrape_and_summarize_parallel(candidates, car_info, fluid_type)
+    if not page_summaries:
+        return "DDGS_NO_SUMMARIES"
+    return "\n\n".join(page_summaries)
 
 
-        output_text = "Deep scraping blocked. Raw Snippets:\n" + "\n".join(snippets)
+@tool(args_schema=SearchInput)
+def firecrawl_Search(
+    brand: str,
+    model: str,
+    year: int,
+    mileage: int = 0,
+    fluid_type: str = "",
+    engine: str = "",
+    gearbox_ref: str = "",
+    transmission_type: str = "",
+) -> str:
+    """Firecrawl-backed replacement for ddgs_Search. Same output format.
 
+    Searches with Firecrawl, sanitizes by domain blocklist, scrapes each
+    surviving URL with trafilatura, then runs the same per-page extraction
+    used by the DDGS path.
+    """
+    fluid_guard = (fluid_type or "").lower()
+    if any(k in fluid_guard for k in ("filtre", "filter")):
+        return "FILTER_NOT_SUPPORTED"
+    if any(k in fluid_guard for k in ("frein", "brake")):
+        return "BRAKE_NOT_SUPPORTED"
+    car_info = f"{brand} {model} {engine} {year}".strip()
+    car_info_alt = f"{year} {brand} {model} {engine}".strip()
+    fluid_lower = fluid_type.lower()
+    engine_lower = engine.lower()
+    is_diesel = any(d in engine_lower for d in [
+        "dci", "tdi", "hdi", "crdi", "cdti", "d4d", "d-4d", "diesel"
+    ])
+    is_gearbox_req = any(k in fluid_lower for k in ["boite", "gearbox", "transmission"])
+
+    if is_gearbox_req:
+        car_gb = f"{brand} {model} {year} {gearbox_ref} {transmission_type}".strip()
+        car_gb_alt = f"{year} {brand} {model} {gearbox_ref} {transmission_type}".strip()
+        queries = [
+            f"Quelle huile de boite de vitesses pour {car_gb} specification constructeur",
+            f"{car_gb_alt} gearbox oil specification OEM reference",
+        ]
+    elif any(k in fluid_lower for k in ["moteur", "engine"]):
+        queries = [
+            f"Quelle huile moteur recommandée pour {car_info} specification constructeur",
+            f"{car_info_alt} engine oil specification OEM recommendation",
+        ]
     else:
-        output_text = "\n\n".join(scraped_data)
+        queries = [
+            f"{brand} {model} {year} {fluid_type} specification constructeur",
+            f"{year} {brand} {model} {fluid_type} specification OEM",
+        ]
 
-    return output_text
+    raw_results: list[dict] = []
+    seen_urls: set[str] = set()
+    try:
+        for i, query in enumerate(queries):
+            print(f"[Firecrawl Query {i + 1}/{len(queries)}]: {query}")
+            try:
+                response = _firecrawl_client.search(
+                    query=query,
+                    limit=10,
+                    sources=["web"],
+                )
+            except Exception as error:
+                print(f"[Firecrawl Query {i + 1} failed]: {error}")
+                continue
+
+            for result in getattr(response, "web", None) or []:
+                url = getattr(result, "url", None) or getattr(result, "link", None) or ""
+                title = getattr(result, "title", "") or ""
+                description = (
+                    getattr(result, "description", None)
+                    or getattr(result, "snippet", None)
+                    or ""
+                )
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    raw_results.append({"href": url, "title": title, "body": description})
+    except Exception as error:
+        print(f"Firecrawl Network Error: {error}")
+        return f"FIRECRAWL_ERROR: {error}"
+
+    print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
+    results = sanitize_search_results(raw_results)
+    print(f"=== SANITIZED RESULTS COUNT: {len(results)} ===")
+    if not results:
+        return "FIRECRAWL_NO_RESULTS"
+
+    candidates = []
+    for item in results[:4]:
+        url = item.get("href") or item.get("link") or ""
+        title = item.get("title", "")
+        description = item.get("body") or item.get("snippet") or ""
+        if url:
+            candidates.append((url, title, description))
+
+    page_summaries = _scrape_and_summarize_parallel(candidates, car_info, fluid_type)
+    page_summaries = _append_unverified_snippets(page_summaries, results)
+    if not page_summaries:
+        return "FIRECRAWL_NO_SUMMARIES"
+    return "\n\n".join(page_summaries)

@@ -21,6 +21,7 @@ tavily-python
 
 # Search and web extraction
 ddgs
+firecrawl-py
 trafilatura
 requests
 
