@@ -381,6 +381,7 @@ def tavily_Search(
 
     raw = []
     seen_urls = set()
+    t_search_calls = time.perf_counter()
     for i, query in enumerate(queries):
         print(f"[Tavily Query {i + 1}/{len(queries)}]: {query}")
         try:
@@ -408,6 +409,7 @@ def tavily_Search(
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 raw.append({"href": url, "title": title, "body": content})
+    print(f"[TIMING] tavily_search_calls: {time.perf_counter() - t_search_calls:.2f}s")
 
     if not raw:
         return "TAVILY_NO_RESULTS"
@@ -419,8 +421,12 @@ def tavily_Search(
         (item["href"], item.get("title", ""), item.get("body", ""))
         for item in sanitized[:4]
     ]
+    t_scrape_and_extract = time.perf_counter()
     page_summaries = _scrape_and_summarize_parallel(candidates, car_info, fluid_type)
+    print(f"[TIMING] tavily_scrape_and_extract: {time.perf_counter() - t_scrape_and_extract:.2f}s")
+    t_snippets = time.perf_counter()
     page_summaries = _append_unverified_snippets(page_summaries, sanitized)
+    print(f"[TIMING] tavily_snippets: {time.perf_counter() - t_snippets:.2f}s")
     if not page_summaries:
         return "TAVILY_NO_SUMMARIES"
     return "\n\n".join(page_summaries)
@@ -612,6 +618,7 @@ def firecrawl_Search(
 
     raw_results: list[dict] = []
     seen_urls: set[str] = set()
+    t_search_calls = time.perf_counter()
     try:
         for i, query in enumerate(queries):
             print(f"[Firecrawl Query {i + 1}/{len(queries)}]: {query}")
@@ -639,6 +646,7 @@ def firecrawl_Search(
     except Exception as error:
         print(f"Firecrawl Network Error: {error}")
         return f"FIRECRAWL_ERROR: {error}"
+    print(f"[TIMING] firecrawl_search_calls: {time.perf_counter() - t_search_calls:.2f}s")
 
     print(f"=== RAW RESULTS COUNT: {len(raw_results)} ===")
     results = sanitize_search_results(raw_results)
@@ -654,8 +662,12 @@ def firecrawl_Search(
         if url:
             candidates.append((url, title, description))
 
+    t_scrape_and_extract = time.perf_counter()
     page_summaries = _scrape_and_summarize_parallel(candidates, car_info, fluid_type)
+    print(f"[TIMING] firecrawl_scrape_and_extract: {time.perf_counter() - t_scrape_and_extract:.2f}s")
+    t_snippets = time.perf_counter()
     page_summaries = _append_unverified_snippets(page_summaries, results)
+    print(f"[TIMING] firecrawl_snippets: {time.perf_counter() - t_snippets:.2f}s")
     if not page_summaries:
         return "FIRECRAWL_NO_SUMMARIES"
     return "\n\n".join(page_summaries)
