@@ -21,9 +21,15 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }) {
           <p>{message.text}</p>
         ) : (
           <div className="chat-md">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {message.text}
-            </ReactMarkdown>
+            {!message.text && (!message.products || message.products.length === 0) ? (
+              <p className="text-neutral-600 text-sm italic">
+                Je n&apos;ai pas de réponse à vous proposer pour le moment.
+              </p>
+            ) : (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.text}
+              </ReactMarkdown>
+            )}
             {message.products && message.products.length > 0 && (
               <ChatProductCards products={message.products} />
             )}

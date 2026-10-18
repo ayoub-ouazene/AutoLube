@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useCatalog } from "./CatalogProvider";
 
 function formatDA(n: number): string {
   return `${n.toLocaleString("fr-DZ")} DA`;
@@ -24,94 +23,65 @@ export function CatalogSidebar({
   brands: string[];
   sizes: string[];
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // ── Current URL state ──────────────────────────────────────────────────────
-  const selectedCategories = searchParams.getAll("category");
-  const selectedBrands = searchParams.getAll("brand");
-  const selectedSizes = searchParams.getAll("size");
-  const urlMinPrice = searchParams.get("min_price") ?? "";
-  const urlMaxPrice = searchParams.get("max_price") ?? "";
+  const { filters, setFilters } = useCatalog();
+  const selectedCategories = filters.categories;
+  const selectedBrands = filters.brands;
+  const selectedSizes = filters.sizes;
 
   // ── Local input state (for price slider) ───────────────────────────────
   const [minPriceInput, setMinPriceInput] = useState(
-    Number(urlMinPrice) || 0
+    filters.minPrice ?? 0
   );
   const [maxPriceInput, setMaxPriceInput] = useState(
-    Number(urlMaxPrice) || maxPrice
+    filters.maxPrice ?? maxPrice
   );
 
-  // Reset local state when URL params change (e.g. "Réinitialiser" link)
-  const [prevSearch, setPrevSearch] = useState(searchParams.toString());
-  if (prevSearch !== searchParams.toString()) {
-    setPrevSearch(searchParams.toString());
-    setMinPriceInput(Number(searchParams.get("min_price")) || 0);
-    setMaxPriceInput(Number(searchParams.get("max_price")) || maxPrice);
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  const pushParams = useCallback(
-    (mutate: (p: URLSearchParams) => void) => {
-      const p = new URLSearchParams(searchParams.toString());
-      p.delete("page");
-      mutate(p);
-      router.replace(`?${p.toString()}`);
-    },
-    [router, searchParams],
-  );
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync after external reset
+    setMinPriceInput(filters.minPrice ?? 0);
+    setMaxPriceInput(filters.maxPrice ?? maxPrice);
+  }, [filters.minPrice, filters.maxPrice, maxPrice]);
 
   // ── Category toggle (immediate) ───────────────────────────────────────────
-  const toggleCategory = useCallback(
-    (cat: string) => {
-      pushParams((p) => {
-        const cats = p.getAll("category");
-        p.delete("category");
-        if (cats.includes(cat)) {
-          cats.filter((c) => c !== cat).forEach((c) => p.append("category", c));
-        } else {
-          cats.forEach((c) => p.append("category", c));
-          p.append("category", cat);
-        }
-      });
-    },
-    [pushParams],
-  );
+  const toggleCategory = (cat: string) => {
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setFilters({ categories: next });
+  };
 
   // ── Size toggle ──────────────────────────────────────────────────────────
-  const toggleSize = useCallback(
-    (s: string) => {
-      pushParams((p) => {
-        p.delete("size");
-        const next = selectedSizes.includes(s)
-          ? selectedSizes.filter((x) => x !== s)
-          : [...selectedSizes, s];
-        next.forEach((s2) => p.append("size", s2));
-      });
-    },
-    [pushParams, selectedSizes],
-  );
+  const toggleSize = (s: string) => {
+    const next = selectedSizes.includes(s)
+      ? selectedSizes.filter((x) => x !== s)
+      : [...selectedSizes, s];
+    setFilters({ sizes: next });
+  };
   // ── Brand toggle ─────────────────────────────────────────────────────────
-  const toggleBrand = useCallback(
-    (b: string) => {
-      pushParams((p) => {
-        p.delete("brand");
-        const next = selectedBrands.includes(b)
-          ? selectedBrands.filter((x) => x !== b)
-          : [...selectedBrands, b];
-        next.forEach((b2) => p.append("brand", b2));
-      });
-    },
-    [pushParams, selectedBrands],
-  );
+  const toggleBrand = (b: string) => {
+    const next = selectedBrands.includes(b)
+      ? selectedBrands.filter((x) => x !== b)
+      : [...selectedBrands, b];
+    setFilters({ brands: next });
+  };
 
   // ── Price apply ──────────────────────────────────────────────────────────
   const applyPrice = () => {
-    pushParams((p) => {
-      if (minPriceInput > 0) p.set("min_price", String(minPriceInput));
-      else p.delete("min_price");
-      if (maxPriceInput < maxPrice) p.set("max_price", String(maxPriceInput));
-      else p.delete("max_price");
+    setFilters({
+      minPrice: minPriceInput > 0 ? minPriceInput : null,
+      maxPrice: maxPriceInput < maxPrice ? maxPriceInput : null,
+    });
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      categories: [],
+      brands: [],
+      sizes: [],
+      minPrice: null,
+      maxPrice: null,
+      q: "",
+      page: 1,
     });
   };
 
@@ -121,12 +91,13 @@ export function CatalogSidebar({
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
         <h2 className="text-base font-semibold text-neutral-900">Filtres</h2>
-        <Link
-          href="/products"
+        <button
+          type="button"
+          onClick={resetFilters}
           className="text-xs text-neutral-500 hover:text-neutral-900 underline underline-offset-2"
         >
           Réinitialiser
-        </Link>
+        </button>
       </div>
 
       {/* Categories */}

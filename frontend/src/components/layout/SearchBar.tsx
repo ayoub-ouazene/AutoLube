@@ -1,32 +1,32 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { useCatalog } from "@/components/product/CatalogProvider";
 
 export function SearchBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { filters, setFilters } = useCatalog();
 
-  const [value, setValue] = useState(searchParams.get("q") ?? "");
+  const [value, setValue] = useState(filters.q);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync from URL when it changes externally (e.g. browser back/forward)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional URL sync
-    setValue(searchParams.get("q") ?? "");
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync after catalog reset
+    setValue(filters.q);
+  }, [filters.q]);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
 
   function handleChange(next: string) {
     setValue(next);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("page");
-      if (next.trim()) params.set("q", next.trim());
-      else params.delete("q");
-      router.replace(`${pathname}?${params.toString()}`);
+      setFilters({ q: next.trim() });
     }, 300);
   }
 

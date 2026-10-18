@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -11,9 +12,12 @@ import {
   ChatMessage,
   ChatProduct,
   SessionRecord,
+  clearMessages,
   clearSession,
+  loadMessages,
   loadSession,
   newMessageId,
+  saveMessages,
   saveSession,
 } from "@/lib/chat";
 
@@ -72,81 +76,170 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  useEffect(() => {
+    const persisted = loadMessages();
+    if (persisted && persisted.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage
+      setMessages(persisted);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Skip the initial empty run to avoid clobbering persisted messages
+    // before loadMessages fires.
+    if (messages.length === 0) return;
+    saveMessages(messages);
+  }, [messages]);
+
   // Text of the last user message that failed due to session expiry.
   // Used to auto-resend after the user starts a new chat.
   const pendingResendRef = useRef<string | null>(null);
 
-  const open = useCallback(() => setIsOpen(true), []);
+  const open = useCallback(() => {
+    setIsOpen(true);
+
+    // If we have a stored session but no visible messages, and the
+    // stored session is past the TTL, silently forget it. Next send
+    // will recreate. Prevents a stale ID from triggering the popup on
+    // an otherwise-empty chat.
+    const rec = loadSession();
+    if (rec && messages.length === 0) {
+      // Mirrors backend values in chat_service.py:
+      //   _SESSION_MAX_SECONDS = 30 * 60
+      //   _SESSION_IDLE_SECONDS = 10 * 60
+      const TTL_HARD_MS = 30 * 60 * 1000;
+      const TTL_IDLE_MS = 10 * 60 * 1000;
+      const now = Date.now();
+      const createdAgo = now - rec.created_at;
+      const idleAgo = rec.last_activity
+        ? now - rec.last_activity
+        : createdAgo;
+      if (createdAgo > TTL_HARD_MS || idleAgo > TTL_IDLE_MS) {
+        clearSession();
+      }
+    }
+  }, [messages.length]);
   const close = useCallback(() => setIsOpen(false), []);
 
   const reset = useCallback(() => {
+    const rec = loadSession();
+    if (rec) {
+      // Fire-and-forget. Do not block UI on the delete.
+      const url = `${API_URL}/chat/session/${rec.session_id}`;
+      fetch(url, { method: "DELETE" }).catch(() => {
+        // ignore — the session will expire on its own
+      });
+    }
     clearSession();
+    clearMessages();
     setMessages([]);
     setError(null);
     setSessionExpired(false);
     pendingResendRef.current = null;
   }, []);
 
-  const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || isSending) return;
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || isSending || sessionExpired) {
+      if (sessionExpired) pendingResendRef.current = trimmed;
+      return;
+    }
 
-      // If session already marked expired, don't attempt to send.
-      // Ask the user to start a new chat instead.
-      if (sessionExpired) {
-        pendingResendRef.current = trimmed;
-        return;
-      }
+    // Append the user bubble first (matches current behavior).
+    const userMsg: ChatMessage = {
+      id: newMessageId(),
+      role: "user",
+      text: trimmed,
+      createdAt: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsSending(true);
+    setError(null);
 
-      const userMsg: ChatMessage = {
+    try {
+      let session = loadSession();
+      if (!session) session = await createSession();
+
+      const result = await sendMessage(session.session_id, trimmed);
+
+      // Update last_activity on success.
+      const rec = loadSession();
+      if (rec) saveSession({ ...rec, last_activity: Date.now() });
+
+      const replyText =
+        result.reply && result.reply.trim().length > 0
+          ? result.reply
+          : result.products && result.products.length > 0
+            ? ""
+            : "Je n'ai pas de réponse à vous proposer pour le moment.";
+
+      const assistantMsg: ChatMessage = {
         id: newMessageId(),
-        role: "user",
-        text: trimmed,
+        role: "assistant",
+        text: replyText,
+        products: result.products ?? [],
         createdAt: Date.now(),
       };
-      setMessages((prev) => [...prev, userMsg]);
-      setIsSending(true);
-      setError(null);
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err) {
+      if (err instanceof Error && err.message === "SESSION_EXPIRED") {
+        // If there has never been an assistant reply in this visible
+        // conversation, this is a "first message" scenario: silently
+        // recreate the session and retry, no popup.
+        //
+        // NOTE: `messages` here reflects state BEFORE the user bubble
+        // was appended (closure snapshot). If the chat was empty prior
+        // to this send, `messages` is [] and hasAssistantReply is false.
+        const hasAssistantReply = messages.some((m) => m.role === "assistant");
 
-      try {
-        let session = loadSession();
-        if (!session) {
-          session = await createSession();
-        }
-
-        const result = await sendMessage(session.session_id, trimmed);
-
-        const assistantMsg: ChatMessage = {
-          id: newMessageId(),
-          role: "assistant",
-          text: result.reply,
-          products: result.products ?? [],
-          createdAt: Date.now(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err) {
-        if (err instanceof Error && err.message === "SESSION_EXPIRED") {
-          // Session died. Do NOT retry. Surface the state so the widget
-          // can show the "start new chat" button.
+        if (!hasAssistantReply) {
           clearSession();
-          setSessionExpired(true);
-          pendingResendRef.current = trimmed;
-        } else {
-          console.error("Chat send error:", err);
-          setError(
-            "Le service est momentanément indisponible. Veuillez réessayer."
-          );
+          try {
+            const fresh = await createSession();
+            const retry = await sendMessage(fresh.session_id, trimmed);
+            const rec = loadSession();
+            if (rec) saveSession({ ...rec, last_activity: Date.now() });
+
+            const replyText =
+              retry.reply && retry.reply.trim().length > 0
+                ? retry.reply
+                : retry.products && retry.products.length > 0
+                  ? ""
+                  : "Je n'ai pas de réponse à vous proposer pour le moment.";
+
+            const assistantMsg: ChatMessage = {
+              id: newMessageId(),
+              role: "assistant",
+              text: replyText,
+              products: retry.products ?? [],
+              createdAt: Date.now(),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+            return;
+          } catch {
+            // Silent retry also failed — fall through to popup.
+          }
         }
-      } finally {
-        setIsSending(false);
+
+        // Non-empty history, or silent retry failed: show popup.
+        clearSession();
+        setSessionExpired(true);
+        pendingResendRef.current = trimmed;
+      } else {
+        console.error("Chat send error:", err);
+        setError(
+          "Le service est momentanément indisponible. Veuillez réessayer."
+        );
       }
-    },
-    [isSending, sessionExpired]
-  );
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   const startNewChat = useCallback(async () => {
     clearSession();
+    clearMessages();
+    setMessages([]);
     setSessionExpired(false);
     setError(null);
 
@@ -172,10 +265,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const session = loadSession();
         if (!session) throw new Error("No session after creation");
         const result = await sendMessage(session.session_id, toResend);
+        const rec = loadSession();
+        if (rec) saveSession({ ...rec, last_activity: Date.now() });
+        const replyText =
+          result.reply && result.reply.trim().length > 0
+            ? result.reply
+            : result.products && result.products.length > 0
+              ? ""
+              : "Je n'ai pas de réponse à vous proposer pour le moment.";
         const assistantMsg: ChatMessage = {
           id: newMessageId(),
           role: "assistant",
-          text: result.reply,
+          text: replyText,
           products: result.products ?? [],
           createdAt: Date.now(),
         };

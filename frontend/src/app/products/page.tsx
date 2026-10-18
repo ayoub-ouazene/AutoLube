@@ -1,9 +1,9 @@
 import { getProducts } from "@/lib/api";
 import type { ProductListParams } from "@/lib/types";
-import { ProductGrid } from "@/components/product/ProductGrid";
-import { Pagination } from "@/components/product/Pagination";
-import { CatalogSidebar } from "@/components/product/CatalogSidebar";
-import { SearchBar } from "@/components/layout/SearchBar";
+import { CatalogClient } from "@/components/product/CatalogClient";
+import type { CatalogFilters } from "@/components/product/CatalogProvider";
+
+const MAX_PAGE_SIZE = 100;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -30,6 +30,13 @@ export default async function ProductsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  const sortParam = firstString(params.sort);
+  const sort: CatalogFilters["sort"] =
+    sortParam === "price_asc" || sortParam === "price_desc"
+      ? sortParam
+      : "random";
+  const page = toNumber(params.page) ?? 1;
+  const pageSize = toNumber(params.page_size) ?? 20;
 
   const apiParams: ProductListParams = {
     category: allStrings(params.category),
@@ -38,8 +45,9 @@ export default async function ProductsPage({
     max_price: toNumber(params.max_price),
     size: allStrings(params.size),
     q: firstString(params.q),
-    page: toNumber(params.page) ?? 1,
-    page_size: toNumber(params.page_size) ?? 20,
+    sort,
+    page,
+    page_size: pageSize,
   };
 
   let data = null;
@@ -78,41 +86,39 @@ export default async function ProductsPage({
     errorMsg = "Erreur lors du chargement des produits.";
   }
 
+  if (errorMsg || !data) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        <div className="p-4 border border-neutral-200 text-sm text-neutral-700">
+          {errorMsg ?? "Erreur lors du chargement des produits."}
+        </div>
+      </main>
+    );
+  }
+
+  const initialFilters: CatalogFilters = {
+    categories: allStrings(params.category) ?? [],
+    brands: allStrings(params.brand) ?? [],
+    sizes: allStrings(params.size) ?? [],
+    minPrice: toNumber(params.min_price) ?? null,
+    maxPrice: toNumber(params.max_price) ?? null,
+    q: firstString(params.q) ?? "",
+    sort,
+    page,
+    pageSize,
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Catalogue</h1>
-          {data && (
-            <p className="text-sm text-neutral-500 mt-1">
-              {data.total} produit{data.total !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
-        <div className="w-full md:w-96">
-          <SearchBar />
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-6">
-        <CatalogSidebar maxPrice={catalogMaxPrice} brands={allBrands} sizes={allSizes} />
-        <div className="flex-1 w-full">
-          {errorMsg ? (
-            <div className="p-4 border border-neutral-200 text-sm text-neutral-700">
-              {errorMsg}
-            </div>
-          ) : data ? (
-            <>
-              <ProductGrid products={data.items} />
-              <Pagination
-                page={data.page}
-                pageSize={data.page_size}
-                total={data.total}
-              />
-            </>
-          ) : null}
-        </div>
-      </div>
+      <CatalogClient
+        initialProducts={data.items}
+        initialTotal={data.total}
+        initialFilters={initialFilters}
+        maxPageSize={MAX_PAGE_SIZE}
+        allBrands={allBrands}
+        allSizes={allSizes}
+        maxPriceBound={catalogMaxPrice}
+      />
     </main>
   );
 }

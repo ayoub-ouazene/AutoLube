@@ -25,9 +25,12 @@ export type ChatProduct = {
 export type SessionRecord = {
   session_id: string;
   created_at: number;
+  last_activity?: number;
 };
 
 export const SESSION_STORAGE_KEY = "autolube_chat_session_v1";
+export const MESSAGES_STORAGE_KEY = "autolube_chat_messages_v1";
+export const MAX_PERSISTED_MESSAGES = 50;
 
 export function loadSession(): SessionRecord | null {
   if (typeof window === "undefined") return null;
@@ -61,6 +64,41 @@ export function clearSession(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function loadMessages(): ChatMessage[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(MESSAGES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveMessages(messages: ChatMessage[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const trimmed = messages.slice(-MAX_PERSISTED_MESSAGES);
+    window.localStorage.setItem(
+      MESSAGES_STORAGE_KEY,
+      JSON.stringify(trimmed)
+    );
+  } catch {
+    // ignore quota errors
+  }
+}
+
+export function clearMessages(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(MESSAGES_STORAGE_KEY);
   } catch {
     // ignore
   }

@@ -148,15 +148,29 @@ export function ChatWidget() {
 
           {/* Input area */}
           <div className="border-t border-neutral-200 p-3 flex gap-2 items-end">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isSending || sessionExpired}
-              placeholder="Écrivez votre message…"
-              className="flex-1 resize-none border border-neutral-300 rounded-md px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none focus:ring-0 disabled:opacity-50"
-            />
+            <div className="flex-1 flex flex-col gap-1">
+              <textarea
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value.slice(0, 2000))}
+                onKeyDown={handleKeyDown}
+                maxLength={2000}
+                disabled={isSending || sessionExpired}
+                placeholder="Écrivez votre message…"
+                className="w-full resize-none border border-neutral-300 rounded-md px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none focus:ring-0 disabled:opacity-50"
+              />
+              {input.length > 1800 && (
+                <span
+                  className={
+                    "text-[10px] " +
+                    (input.length >= 2000 ? "text-red-600" : "text-neutral-500")
+                  }
+                  aria-live="polite"
+                >
+                  {input.length}/2000
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={handleSend}
