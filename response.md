@@ -1,927 +1,1349 @@
-# Chat Session Lifecycle Diagnostic
+# Admin Backend Inspection and Frontend Environment Report
 
-**Date:** 17 October 2026
-**Scope:** Read-only inspection of backend and frontend chat-session creation, storage, expiry, error handling, reset behavior, and visible-history behavior. No source or configuration file was modified as part of the diagnosis; only this report was written.
+**Date:** 18 October 2026
 
 ---
 
-# Part A — Backend session lifecycle
+# Part 0 — Frontend environment example
 
-## A1. Session creation endpoint
+## `.env.local` variables
 
-The endpoint is `POST /api/v1/chat/session`. The chat router has the `/chat` prefix, and the application mounts all v1 routes under `/api/v1`.
-
-`backend/app/api/v1/chat.py`, lines 12 and 15–23:
-
-```python
-12  router = APIRouter(prefix="/chat", tags=["chat"])
-
-15  @router.post(
-16      "/session",
-17      response_model=CreateSessionResponse,
-18      status_code=status.HTTP_201_CREATED,
-19  )
-20  def create_session() -> CreateSessionResponse:
-21      """Start a new chat session. Returns a session_id to use on subsequent calls."""
-22      session_id = chat_service.create_session()
-23      return CreateSessionResponse(session_id=session_id)
-```
-
-`backend/app/main.py` mounts the API router under `/api/v1`:
-
-```python
-app.include_router(api_router, prefix="/api/v1")
-```
-
-The exact successful JSON response has only one field:
-
-```json
-{
-  "session_id": "<UUID>"
-}
-```
-
-That shape is defined in `backend/app/schemas/chat.py`, lines 4–5:
-
-```python
-4  class CreateSessionResponse(BaseModel):
-5      session_id: str = Field(..., description="Opaque session identifier. Send it back on every subsequent request.")
-```
-
-The response status is HTTP `201 Created`.
-
-**No TTL information is returned.** The response does not contain `created_at`, `expires_at`, `ttl_seconds`, idle timeout, or maximum lifetime. The frontend creates its own local `created_at`, but that timestamp is not provided by the backend.
-
-## A2. Session TTL rules
-
-The backend enforces two separate limits in `backend/app/services/chat_service.py`, lines 10–11:
-
-```python
-10  _SESSION_MAX_SECONDS = 30 * 60   # hard cap from creation
-11  _SESSION_IDLE_SECONDS = 10 * 60  # inactivity cap
-```
-
-Therefore:
-
-- Maximum lifetime: 30 minutes from creation.
-- Idle timeout: 10 minutes since the last successfully processed message.
-
-Expiry is calculated in lines 16–20:
-
-```python
-16  def _is_expired(session: dict[str, Any]) -> bool:
-17      now = time.time()
-18      age = now - session["created_at"]
-19      idle = now - session["last_activity"]
-20      return age > _SESSION_MAX_SECONDS or idle > _SESSION_IDLE_SECONDS
-```
-
-The two limits are independent. A session expires when either condition is true. Activity resets only `last_activity`; it does not reset `created_at`.
-
-That behavior is explicit in lines 59–62:
-
-```python
-59  session["history"] = updated_history
-60  session["current_vehicle"] = updated_vehicle
-61  session["last_activity"] = time.time()   # <- resets idle timer
-62  # created_at stays fixed — that's the hard cap
-```
-
-Expired sessions are removed by `_evict_expired`, lines 23–27:
-
-```python
-23  def _evict_expired() -> None:
-24      """Drop sessions that have exceeded either timeout."""
-25      expired = [sid for sid, s in _sessions.items() if _is_expired(s)]
-26      for sid in expired:
-27          _sessions.pop(sid, None)
-```
-
-There is no background timer dedicated to chat-session expiry. Expiry is checked lazily during API/service operations:
-
-- On session creation: `create_session()` calls `_evict_expired()` at line 33.
-- On message processing: `process_message()` calls `_evict_expired()` at line 46.
-- On existence checks: `session_exists()` calls `_evict_expired()` at line 72.
-
-Relevant evidence:
-
-```python
-32  def create_session() -> str:
-33      _evict_expired()
-```
-
-```python
-45  def process_message(session_id: str, message: str) -> str:
-46      _evict_expired()
-```
-
-```python
-71  def session_exists(session_id: str) -> bool:
-72      _evict_expired()
-73      session = _sessions.get(session_id)
-74      return session is not None and not _is_expired(session)
-```
-
-Thus expiry is checked on relevant incoming chat operations, not continuously.
-
-## A3. Message endpoint behavior for unknown or expired sessions
-
-The endpoint is `POST /api/v1/chat/session/{session_id}/message`.
-
-`backend/app/api/v1/chat.py`, lines 26–39:
-
-```python
-26  @router.post(
-27      "/session/{session_id}/message",
-28      response_model=MessageResponse,
-29  )
-30  def send_message(session_id: str, payload: MessageRequest) -> MessageResponse:
-31      """Send a user message and get the assistant reply."""
-32      if not chat_service.session_exists(session_id):
-33          raise HTTPException(
-34              status_code=status.HTTP_404_NOT_FOUND,
-35              detail="Session not found or expired.",
-36          )
-38      reply, products = chat_service.process_message(session_id, payload.message)
-39      return MessageResponse(reply=reply, products=products)
-```
-
-For both an unknown session and an expired session, the endpoint returns HTTP `404 Not Found` with the FastAPI JSON body:
-
-```json
-{
-  "detail": "Session not found or expired."
-}
-```
-
-There is no client-visible distinction between:
-
-- A session ID that never existed.
-- A session removed after idle timeout.
-- A session removed after maximum lifetime.
-- A valid session lost because the backend process restarted.
-- A valid session lost because another worker/process owns a different in-memory store.
-
-The service itself also uses one combined internal error condition in `backend/app/services/chat_service.py`, lines 48–51:
-
-```python
-48  session = _sessions.get(session_id)
-49  if session is None or _is_expired(session):
-50      _sessions.pop(session_id, None)
-51      raise KeyError(f"Unknown or expired session: {session_id}")
-```
-
-In the normal route path, `session_exists()` handles the condition first and emits the 404. There is a small race window between `session_exists()` and `process_message()`: if the session expires between those calls, `process_message()` can raise an uncaught `KeyError`, which would not be converted by this handler into the same 404. Under ordinary timing this is unlikely, but the two-step check is not atomic.
-
-## A4. Delete endpoint
-
-A delete endpoint exists:
+`frontend/.env.local` defines:
 
 ```text
-DELETE /api/v1/chat/session/{session_id}
+NEXT_PUBLIC_API_URL=***
 ```
 
-`backend/app/api/v1/chat.py`, lines 42–49:
+Its working value shape includes the complete `/api/v1` prefix:
+
+```text
+http://127.0.0.1:8000/api/v1
+```
+
+No value from `.env.local` was copied as a secret, and `.env.local` was not modified.
+
+## Previous `.env.example`
+
+Before correction, `frontend/.env.example` contained:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+That variable was incorrect because application code reads `NEXT_PUBLIC_API_URL`.
+
+## Corrected `.env.example`
+
+`frontend/.env.example` now contains:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api/v1
+```
+
+## Old-name grep result
+
+The requested search returned no matches:
+
+```text
+$ grep -rn "NEXT_PUBLIC_API_BASE_URL" frontend/src frontend/*.ts frontend/*.js frontend/*.json 2>/dev/null
+```
+
+Result:
+
+```text
+(no matches)
+```
+
+Confirmed: `frontend/.env.local` was read but not modified.
+
+---
+
+# Part A — Admin authentication and JWT
+
+## A1. Login endpoint
+
+The router has an `/admin` prefix:
+
+`backend/app/api/v1/admin.py:9`
 
 ```python
-42  @router.delete(
-43      "/session/{session_id}",
-44      response_model=EndSessionResponse,
-45  )
-46  def end_session(session_id: str) -> EndSessionResponse:
-47      """End a chat session and free its history."""
-48      chat_service.end_session(session_id)
-49      return EndSessionResponse(ok=True)
+router = APIRouter(prefix="/admin", tags=["admin"])
 ```
 
-The service removes the session from the in-memory dictionary, lines 67–68:
+The login handler is:
+
+`backend/app/api/v1/admin.py:12-26`
 
 ```python
-67  def end_session(session_id: str) -> None:
-68      _sessions.pop(session_id, None)
+@router.post("/login", response_model=LoginResponse)
+def login(payload: LoginRequest) -> LoginResponse:
+    """Exchange admin credentials for a JWT."""
+    if not verify_credentials(payload.username, payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Identifiants invalides.",
+        )
+
+    token = create_access_token()
+    return LoginResponse(
+        access_token=token,
+        expires_in=settings.jwt_expire_minutes * 60,
+    )
 ```
 
-The delete is idempotent: deleting an unknown ID does not fail because `pop(..., None)` is used.
+The API router is mounted under `/api/v1`, so the exact URL is:
 
-No explicit status code is set, so FastAPI returns HTTP `200 OK`. The response body is:
+```text
+POST /api/v1/admin/login
+```
+
+The login endpoint itself is public and has no `Depends(get_current_admin)` dependency.
+
+Invalid credentials return HTTP 401:
 
 ```json
 {
-  "ok": true
+  "detail": "Identifiants invalides."
 }
 ```
 
-That response shape is defined in `backend/app/schemas/chat.py`, lines 23–24:
+## A2. Login request body
+
+`backend/app/schemas/admin.py:4-6`
 
 ```python
-23  class EndSessionResponse(BaseModel):
-24      ok: bool = True
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
 ```
 
-## A5. History endpoint
-
-There is **no history endpoint**.
-
-The only customer chat routes registered in `backend/app/api/v1/chat.py` are:
-
-- `POST /chat/session`
-- `POST /chat/session/{session_id}/message`
-- `DELETE /chat/session/{session_id}`
-
-No `GET /chat/session/{id}/messages` or `GET /chat/session/{id}` handler exists.
-
-The backend does keep history internally, but it is not exposed. Session creation initializes it in `backend/app/services/chat_service.py`, lines 36–40:
-
-```python
-36  _sessions[session_id] = {
-37      "history": [],
-38      "current_vehicle": {},
-39      "created_at": now,
-40      "last_activity": now,
-41  }
-```
-
-After each successful turn, internal history is replaced in lines 53–60:
-
-```python
-53  reply, updated_history, updated_vehicle, products = process_turn(
-54      user_message=message,
-55      history=session["history"],
-56      current_vehicle=session["current_vehicle"],
-57  )
-59  session["history"] = updated_history
-60  session["current_vehicle"] = updated_vehicle
-```
-
-Because there is no history endpoint, the frontend cannot restore visible messages from this backend state after a reload.
-
-## A6. Message length limit
-
-The message limit is defined in the request schema at `backend/app/schemas/chat.py`, lines 8–9:
-
-```python
-8  class MessageRequest(BaseModel):
-9      message: str = Field(..., min_length=1, max_length=2000, description="Customer message in natural language.")
-```
-
-The accepted length is 1–2,000 characters.
-
-When the request exceeds 2,000 characters, FastAPI/Pydantic rejects the request before the endpoint handler runs and returns HTTP `422 Unprocessable Entity` with FastAPI's standard validation-error JSON. The code does not define a custom customer-facing message for this validation error.
-
-The response therefore exposes schema-validation structure such as location, error type, and constraint context. It is useful for developers but not intentionally translated into a friendly French customer message.
-
-The route is also rate-limited separately in `backend/app/core/rate_limit.py`:
-
-```python
-("POST", "/api/v1/chat/session/{session_id}/message", 15, 60, "session_id"),
-```
-
-That is 15 requests per 60 seconds keyed by session ID; it is separate from the 2,000-character validation limit.
-
-## A7. Session storage model
-
-The chat session store is a process-local in-memory dictionary.
-
-`backend/app/services/chat_service.py`, lines 8–13:
-
-```python
-8   # ---------- session store ----------
-10  _SESSION_MAX_SECONDS = 30 * 60   # hard cap from creation
-11  _SESSION_IDLE_SECONDS = 10 * 60  # inactivity cap
-13  _sessions: dict[str, dict[str, Any]] = {}
-```
-
-Each session stores:
-
-- `history`
-- `current_vehicle`
-- `created_at`
-- `last_activity`
-
-There is no database or Redis persistence for chat sessions.
-
-Consequences visible from the implementation:
-
-- All sessions disappear when the backend process restarts.
-- Multiple backend worker processes do not share session state.
-- A request routed to a different process can see a valid frontend session ID as unknown.
-
-Session IDs are generated with Python UUID v4:
-
-```python
-32  def create_session() -> str:
-33      _evict_expired()
-34      session_id = str(uuid.uuid4())
-```
-
-The identifier is random and not sequential/guessable in the practical sense expected of UUID v4.
-
-There is no authentication or user binding in the chat endpoints. The session ID is the only lookup key. Anyone possessing a valid session ID can send messages into that session or delete it. No account, cookie, JWT, IP binding, or ownership check is applied by the route.
-
----
-
-# Part B — Frontend session state and expiry handling
-
-## B1. Session ID storage
-
-The session is stored only in browser `localStorage`, under this key:
-
-`frontend/src/lib/chat.ts`, lines 25–30:
-
-```ts
-25  export type SessionRecord = {
-26    session_id: string;
-27    created_at: number;
-28  };
-30  export const SESSION_STORAGE_KEY = "autolube_chat_session_v1";
-```
-
-Read logic, lines 32–49:
-
-```ts
-32  export function loadSession(): SessionRecord | null {
-33    if (typeof window === "undefined") return null;
-34    try {
-35      const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
-36      if (!raw) return null;
-37      const parsed = JSON.parse(raw);
-38      if (
-39        !parsed ||
-40        typeof parsed.session_id !== "string" ||
-41        typeof parsed.created_at !== "number"
-42      ) {
-43        return null;
-44      }
-45      return parsed;
-46    } catch {
-47      return null;
-48    }
-49  }
-```
-
-Write logic, lines 51–58:
-
-```ts
-51  export function saveSession(rec: SessionRecord): void {
-52    if (typeof window === "undefined") return;
-53    try {
-54      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(rec));
-55    } catch {
-56      // ignore
-57    }
-58  }
-```
-
-Clear logic, lines 60–67:
-
-```ts
-60  export function clearSession(): void {
-61    if (typeof window === "undefined") return;
-62    try {
-63      window.localStorage.removeItem(SESSION_STORAGE_KEY);
-64    } catch {
-65      // ignore
-66    }
-67  }
-```
-
-The frontend stores both `session_id` and a local `created_at` timestamp.
-
-That timestamp is created by the frontend after a successful session-creation request, not returned by the backend. `frontend/src/components/chat/ChatProvider.tsx`, lines 37–46:
-
-```ts
-37  async function createSession(): Promise<SessionRecord> {
-38    const res = await fetch(`${API_URL}/chat/session`, { method: "POST" });
-39    if (!res.ok) throw new Error(`Session creation failed: ${res.status}`);
-40    const data = await res.json();
-41    const rec: SessionRecord = {
-42      session_id: data.session_id,
-43      created_at: Date.now(),
-44    };
-45    saveSession(rec);
-46    return rec;
-47  }
-```
-
-The session record is not also held in dedicated React state. It is loaded from localStorage only when needed during send/retry operations.
-
-## B2. Message history storage
-
-Visible messages are held only in React state.
-
-`frontend/src/components/chat/ChatProvider.tsx`, lines 68–73:
-
-```ts
-68  export function ChatProvider({ children }: { children: React.ReactNode }) {
-69    const [isOpen, setIsOpen] = useState(false);
-70    const [messages, setMessages] = useState<ChatMessage[]>([]);
-71    const [isSending, setIsSending] = useState(false);
-72    const [error, setError] = useState<string | null>(null);
-73    const [sessionExpired, setSessionExpired] = useState(false);
-```
-
-User messages are appended at lines 102–108:
-
-```ts
-102  const userMsg: ChatMessage = {
-103    id: newMessageId(),
-104    role: "user",
-105    text: trimmed,
-106    createdAt: Date.now(),
-107  };
-108  setMessages((prev) => [...prev, userMsg]);
-```
-
-Assistant messages are appended at lines 120–127:
-
-```ts
-120  const assistantMsg: ChatMessage = {
-121    id: newMessageId(),
-122    role: "assistant",
-123    text: result.reply,
-124    products: result.products ?? [],
-125    createdAt: Date.now(),
-126  };
-127  setMessages((prev) => [...prev, assistantMsg]);
-```
-
-No code stores the `messages` array in localStorage, sessionStorage, IndexedDB, cookies, or the backend through a history API. `src/lib/chat.ts` persists only `SessionRecord`.
-
-Therefore, after a page reload:
-
-- The visible `messages` array returns to `[]`.
-- The old `session_id` remains in localStorage.
-- Backend history may still exist if the session remains valid, but the frontend has no endpoint to fetch it.
-
-Visible message history does **not** survive a page reload.
-
-## B3. How the `sessionExpired` state is triggered
-
-The API helper treats every HTTP 404 from the message endpoint as session expiry.
-
-`frontend/src/components/chat/ChatProvider.tsx`, lines 49–65:
-
-```ts
-49  async function sendMessage(
-50    sessionId: string,
-51    text: string
-52  ): Promise<{ reply: string; products: ChatProduct[] }> {
-53    const res = await fetch(`${API_URL}/chat/session/${sessionId}/message`, {
-54      method: "POST",
-55      headers: { "Content-Type": "application/json" },
-56      body: JSON.stringify({ message: text }),
-57    });
-58    if (res.status === 404) {
-59      throw new Error("SESSION_EXPIRED");
-60    }
-61    if (!res.ok) {
-62      const body = await res.text();
-63      throw new Error(`Send failed: ${res.status} ${body}`);
-64    }
-65    return res.json();
-66  }
-```
-
-The `send` callback catches that sentinel error and sets the flag, lines 128–140:
-
-```ts
-128  } catch (err) {
-129    if (err instanceof Error && err.message === "SESSION_EXPIRED") {
-130      // Session died. Do NOT retry. Surface the state so the widget
-131      // can show the "start new chat" button.
-132      clearSession();
-133      setSessionExpired(true);
-134      pendingResendRef.current = trimmed;
-135    } else {
-136      console.error("Chat send error:", err);
-137      setError(
-138        "Le service est momentanément indisponible. Veuillez réessayer."
-139      );
-140    }
-```
-
-When this happens:
-
-- The stale localStorage session is removed.
-- `sessionExpired` becomes `true`.
-- The attempted text is saved in `pendingResendRef`.
-- No new session is created automatically.
-- No resend occurs automatically at this point.
-- The already-added user message remains visible.
-
-Once `sessionExpired` is true, future calls to `send` are stopped before adding a bubble or making a request, lines 95–100:
-
-```ts
-95  // If session already marked expired, don't attempt to send.
-96  // Ask the user to start a new chat instead.
-97  if (sessionExpired) {
-98    pendingResendRef.current = trimmed;
-99    return;
-100 }
-```
-
-The widget also blocks its send handler and disables the input/button when expired:
-
-`frontend/src/components/chat/ChatWidget.tsx`, lines 42–46:
-
-```tsx
-42  async function handleSend() {
-43    const text = input.trim();
-44    if (!text || isSending || sessionExpired) return;
-45    setInput("");
-46    await send(text);
-47  }
-```
-
-Lines 151–164:
-
-```tsx
-151  <textarea
-152    rows={1}
-153    value={input}
-154    onChange={(e) => setInput(e.target.value)}
-155    onKeyDown={handleKeyDown}
-156    disabled={isSending || sessionExpired}
-157    placeholder="Écrivez votre message…"
-158    className="..."
-159  />
-160  <button
-161    type="button"
-162    onClick={handleSend}
-163    disabled={!input.trim() || isSending || sessionExpired}
-```
-
-## B4. Exact empty-visible-history bug scenario
-
-Scenario:
-
-1. The browser has an expired/stale `session_id` in localStorage.
-2. The page is loaded or reloaded.
-3. `ChatProvider` initializes visible messages to an empty array:
-
-```ts
-const [messages, setMessages] = useState<ChatMessage[]>([]);
-```
-
-4. Opening the chat only sets `isOpen` to true. It does not validate the local session:
-
-```ts
-79  const open = useCallback(() => setIsOpen(true), []);
-```
-
-5. Because `messages.length === 0`, the widget initially renders the welcome/example screen:
-
-`frontend/src/components/chat/ChatWidget.tsx`, lines 99–119:
-
-```tsx
-99   {/* Body */}
-100  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-101    {messages.length === 0 ? (
-102      <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-103        <p className="text-sm text-neutral-600">
-104          Bonjour. Posez-moi une question sur votre véhicule, je vous recommande les huiles adaptées.
-105        </p>
-106        <div className="flex flex-col gap-2 w-full">
-107          {EXAMPLES.map((ex) => (
-108            <button
-109              key={ex}
-110              type="button"
-111              onClick={() => send(ex)}
-...
-118      </div>
-119    ) : (
-```
-
-6. The user types and sends a first visible message.
-7. `send` appends the user bubble **before** checking the server session:
-
-```ts
-102  const userMsg: ChatMessage = {...};
-108  setMessages((prev) => [...prev, userMsg]);
-```
-
-8. `loadSession()` returns the stale localStorage record, so no new session is created:
-
-```ts
-112  try {
-113    let session = loadSession();
-114    if (!session) {
-115      session = await createSession();
-116    }
-118    const result = await sendMessage(session.session_id, trimmed);
-```
-
-9. The backend returns 404 because the ID is unknown/expired.
-10. The frontend converts the 404 to `SESSION_EXPIRED`, clears localStorage, sets `sessionExpired=true`, and preserves the attempted message for resend:
-
-```ts
-129  if (err instanceof Error && err.message === "SESSION_EXPIRED") {
-132    clearSession();
-133    setSessionExpired(true);
-134    pendingResendRef.current = trimmed;
-```
-
-11. At this point, `messages.length` is now at least 1 because the failed user message was already appended. The widget switches from the empty branch to the non-empty branch.
-12. The expiry UI renders under this condition:
-
-`frontend/src/components/chat/ChatWidget.tsx`, lines 119–140:
-
-```tsx
-119  ) : (
-120    <>
-121      {messages.map((m) => (
-122        <ChatMessageBubble key={m.id} message={m} />
-123      ))}
-...
-129      {sessionExpired && (
-130        <div className="border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 rounded-md">
-131          <p>La conversation a expiré.</p>
-132          <button
-133            type="button"
-134            onClick={startNewChat}
-...
-137            Démarrer une nouvelle conversation
-138          </button>
-139        </div>
-140      )}
-```
-
-The code does **not** distinguish “empty visible history before this first attempted message” from “an established visible conversation with context.” It uses only the generic `sessionExpired` flag after having already appended the failed first message.
-
-There is an additional render-detail: if `sessionExpired` somehow became true while `messages.length` remained exactly zero, the current JSX would not show the expiry UI at all because that UI exists only in the non-empty `else` branch. In the observed path, the user message is appended first, so the list is no longer empty and the expiry UI appears.
-
-## B5. Auto-resend on new session
-
-The frontend does not auto-create/retry immediately upon detecting 404. It waits for the user to click “Démarrer une nouvelle conversation.”
-
-When 404 occurs, the pending text is stored:
-
-```ts
-132  clearSession();
-133  setSessionExpired(true);
-134  pendingResendRef.current = trimmed;
-```
-
-Clicking the button calls `startNewChat`, lines 148–190:
-
-```ts
-148  const startNewChat = useCallback(async () => {
-149    clearSession();
-150    setSessionExpired(false);
-151    setError(null);
-
-153    const toResend = pendingResendRef.current;
-154    pendingResendRef.current = null;
-
-156    try {
-157      await createSession();
-158    } catch (err) {
-159      console.error("New chat creation failed:", err);
-160      setError(
-161        "Impossible de démarrer une nouvelle conversation. Réessayez."
-162      );
-163      return;
-164    }
-
-166    if (toResend) {
-167      // Re-send the message the user already typed. Do NOT add a new
-168      // user bubble — the previous one is still visible and this is
-169      // the same message.
-170      setIsSending(true);
-171      try {
-172        const session = loadSession();
-173        if (!session) throw new Error("No session after creation");
-174        const result = await sendMessage(session.session_id, toResend);
-175        const assistantMsg: ChatMessage = {
-176          id: newMessageId(),
-177          role: "assistant",
-178          text: result.reply,
-179          products: result.products ?? [],
-180          createdAt: Date.now(),
-181        };
-182        setMessages((prev) => [...prev, assistantMsg]);
-183      } catch (err) {
-184        console.error("Resend after new chat failed:", err);
-185        setError("Le service est momentanément indisponible.");
-186      } finally {
-187        setIsSending(false);
-188      }
-189    }
-190  }, []);
-```
-
-Therefore, after explicit user confirmation, the frontend:
-
-1. Creates a new backend session.
-2. Loads that new session from localStorage.
-3. Resends the pending message.
-4. Adds only the assistant reply because the original user bubble is already visible.
-
-## B6. Reset button behavior
-
-The header reset button calls `reset` directly.
-
-`frontend/src/components/chat/ChatWidget.tsx`, lines 80–86:
-
-```tsx
-80  <button
-81    type="button"
-82    onClick={reset}
-83    aria-label="Nouvelle conversation"
-84    className="..."
-85  >
-86    <RotateCcw size={16} />
-```
-
-`reset` is defined in `frontend/src/components/chat/ChatProvider.tsx`, lines 82–88:
-
-```ts
-82  const reset = useCallback(() => {
-83    clearSession();
-84    setMessages([]);
-85    setError(null);
-86    setSessionExpired(false);
-87    pendingResendRef.current = null;
-88  }, []);
-```
-
-It clears:
-
-- The localStorage session record through `clearSession()`.
-- React message state.
-- React error state.
-- React session-expired state.
-- The pending resend reference.
-
-It does **not** call `DELETE /chat/session/{id}`. The old server session remains in `_sessions` until it expires, is evicted during a later chat operation, the process restarts, or another caller explicitly deletes it.
-
-The “start new chat” expiry action also calls only `clearSession()` locally before creating a new session; it does not delete the old server session. In the expiry case the old session is already unknown/expired, but in manual reset it may still be valid.
-
-## B7. Character-limit enforcement
-
-The textarea is in `frontend/src/components/chat/ChatWidget.tsx`, lines 151–159:
-
-```tsx
-151  <textarea
-152    rows={1}
-153    value={input}
-154    onChange={(e) => setInput(e.target.value)}
-155    onKeyDown={handleKeyDown}
-156    disabled={isSending || sessionExpired}
-157    placeholder="Écrivez votre message…"
-158    className="..."
-159  />
-```
-
-It has no `maxLength={2000}` or any other client-side maximum. There is no character counter.
-
-The 2,000-character limit exists only in the backend Pydantic schema:
-
-```python
-message: str = Field(..., min_length=1, max_length=2000, ...)
-```
-
-The frontend does not import, derive, or hardcode that limit.
-
-If the user sends more than 2,000 characters, the backend returns 422. The frontend treats that as a generic non-404 send failure.
-
-## B8. Error-handling shape
-
-The message helper distinguishes only HTTP 404 from all other non-success statuses.
-
-```ts
-58  if (res.status === 404) {
-59    throw new Error("SESSION_EXPIRED");
-60  }
-61  if (!res.ok) {
-62    const body = await res.text();
-63    throw new Error(`Send failed: ${res.status} ${body}`);
-64  }
-```
-
-In `send`, 404 is treated as expiry; everything else gets one generic user-facing message:
-
-```ts
-128  } catch (err) {
-129    if (err instanceof Error && err.message === "SESSION_EXPIRED") {
-132      clearSession();
-133      setSessionExpired(true);
-134      pendingResendRef.current = trimmed;
-135    } else {
-136      console.error("Chat send error:", err);
-137      setError(
-138        "Le service est momentanément indisponible. Veuillez réessayer."
-139      );
-140    }
-```
-
-The generic error is rendered only in the non-empty-message branch of the widget:
-
-```tsx
-141  {error && (
-142    <p className="text-red-600 text-xs">{error}</p>
-143  )}
-```
-
-Error handling is not typed by status or backend error category. These all look the same to the user:
-
-- 400/422 validation errors.
-- 429 request rate limits.
-- 500 backend failures.
-- Network failure.
-- CORS/configuration failure.
-- Session-creation failure during normal `send`.
-
-The raw backend body is included in the internal thrown error and logged to the browser console, but the ordinary `send` path displays a generic French message.
-
-The `startNewChat` flow has two other generic messages:
-
-- Session creation failure: `Impossible de démarrer une nouvelle conversation. Réessayez.`
-- Resend failure: `Le service est momentanément indisponible.`
-
-There is no structured error class or discriminated error response handling.
-
----
-
-# Part C — Session TTL check on open
-
-## C1. Session-age check when opening chat
-
-The frontend does not check session age when the chat opens.
-
-Open behavior is only:
-
-```ts
-const open = useCallback(() => setIsOpen(true), []);
-```
-
-The stored `created_at` timestamp is validated as a number by `loadSession()`, but it is never compared with the current time. There is no frontend TTL constant and no idle timestamp.
-
-Expiry is discovered only when the user sends a message and the backend responds with HTTP 404.
-
-## C2. Proactive backend validation
-
-There is no proactive session validation on provider mount or chat open.
-
-The frontend makes no request equivalent to:
-
-- `GET /chat/session/{id}`
-- `GET /chat/session/{id}/messages`
-- Any health/validation request tied to the stored session
-
-The backend does not expose either of those GET endpoints anyway.
-
-The only chat network operations in `ChatProvider.tsx` are:
-
-```ts
-POST /chat/session
-POST /chat/session/{id}/message
-```
-
-The frontend also does not invoke the available backend delete endpoint.
-
-## C3. Frontend hardcoded TTL
-
-There is no frontend TTL constant.
-
-The locally stored `created_at` is written here:
-
-```ts
-const rec: SessionRecord = {
-  session_id: data.session_id,
-  created_at: Date.now(),
-};
-```
-
-It is read and type-checked here:
-
-```ts
-if (
-  !parsed ||
-  typeof parsed.session_id !== "string" ||
-  typeof parsed.created_at !== "number"
-) {
-  return null;
+Request JSON:
+
+```json
+{
+  "username": "string",
+  "password": "string"
 }
 ```
 
-It is never used to determine expiry. The frontend also has no `last_activity`, so it cannot independently reproduce the backend's 10-minute idle-timeout calculation.
+Both fields are required. There is no email field.
+
+## A3. Login response body
+
+`backend/app/schemas/admin.py:9-12`
+
+```python
+class LoginResponse(BaseModel):
+    access_token: str = Field(
+        ...,
+        description="JWT to send as Bearer token on admin requests.",
+    )
+    token_type: str = Field("bearer", description="Always 'bearer'.")
+    expires_in: int = Field(..., description="Token lifetime in seconds.")
+```
+
+Response JSON:
+
+```json
+{
+  "access_token": "<JWT>",
+  "token_type": "bearer",
+  "expires_in": 28800
+}
+```
+
+No admin user object or profile data is returned.
+
+Although the route constructs `LoginResponse` without explicitly supplying `token_type`, its schema default is `"bearer"`.
+
+## A4. JWT details
+
+### Algorithm
+
+`backend/app/core/security.py:10`
+
+```python
+ALGORITHM = "HS256"
+```
+
+Encoding occurs at `backend/app/core/security.py:40-50`:
+
+```python
+def create_access_token(
+    extra_claims: dict[str, Any] | None = None
+) -> str:
+    now = int(time.time())
+    payload = {
+        "sub": settings.admin_username,
+        "iat": now,
+        "exp": now + settings.jwt_expire_minutes * 60,
+    }
+    if extra_claims:
+        payload.update(extra_claims)
+    return jwt.encode(
+        payload,
+        settings.jwt_secret_key,
+        algorithm=ALGORITHM,
+    )
+```
+
+### Secret source
+
+`backend/app/config.py:40-43`
+
+```python
+jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
+jwt_expire_minutes: int = Field(480, alias="JWT_EXPIRE_MINUTES")
+```
+
+The signing secret comes from:
+
+```text
+JWT_SECRET_KEY
+```
+
+### Expiry
+
+The configured default is 480 minutes:
+
+```text
+480 minutes = 8 hours = 28,800 seconds
+```
+
+The effective local configuration also reported:
+
+```text
+JWT_EXPIRE_MINUTES=480
+```
+
+The login response converts this to seconds:
+
+`backend/app/api/v1/admin.py:23-25`
+
+```python
+return LoginResponse(
+    access_token=token,
+    expires_in=settings.jwt_expire_minutes * 60,
+)
+```
+
+### Claims
+
+The JWT sets standard claims:
+
+- `sub`: configured admin username.
+- `iat`: issued-at Unix timestamp.
+- `exp`: expiration Unix timestamp.
+
+Optional custom claims can be supplied through `extra_claims`, although login does not add any.
+
+No `iss`, `aud`, `jti`, or explicit role claim is set.
+
+## A5. Protected-route dependency
+
+Admin routes use:
+
+```python
+dependencies=[Depends(get_current_admin)]
+```
+
+For example, `backend/app/api/v1/admin.py:35-39`:
+
+```python
+@router.get(
+    "/orders",
+    response_model=AdminOrderListResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+```
+
+The dependency is defined in `backend/app/api/deps.py:7-33`:
+
+```python
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_admin(
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        _bearer_scheme
+    ),
+) -> dict:
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Jeton d'authentification manquant.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = decode_token(credentials.credentials)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Jeton invalide ou expiré.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return payload
+```
+
+Expected header:
+
+```http
+Authorization: Bearer <token>
+```
+
+Missing token response:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer
+```
+
+```json
+{
+  "detail": "Jeton d'authentification manquant."
+}
+```
+
+Invalid or expired token response:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer
+```
+
+```json
+{
+  "detail": "Jeton invalide ou expiré."
+}
+```
+
+JWT verification is in `backend/app/core/security.py:53-60`:
+
+```python
+def decode_token(token: str) -> dict[str, Any] | None:
+    try:
+        return jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[ALGORITHM],
+        )
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+```
+
+## A6. Admin credentials source
+
+`backend/app/config.py:37-38`
+
+```python
+admin_username: str = Field(..., alias="ADMIN_USERNAME")
+admin_password_hash: str = Field(..., alias="ADMIN_PASSWORD_HASH")
+```
+
+Credentials come from:
+
+```text
+ADMIN_USERNAME
+ADMIN_PASSWORD_HASH
+```
+
+The username is stored as plain configuration and compared directly.
+
+The password is not stored as plaintext. The submitted plaintext password is compared against a bcrypt hash.
+
+`backend/app/core/security.py:15-25`
+
+```python
+def verify_password(plain_password: str) -> bool:
+    if not plain_password:
+        return False
+    try:
+        stored = settings.admin_password_hash.encode("utf-8")
+        provided = plain_password.encode("utf-8")
+        return bcrypt.checkpw(provided, stored)
+    except (ValueError, TypeError):
+        return False
+```
+
+`backend/app/core/security.py:28-35`
+
+```python
+def verify_credentials(username: str, password: str) -> bool:
+    if not username or not password:
+        return False
+    if username != settings.admin_username:
+        return False
+    return verify_password(password)
+```
+
+Malformed password hashes fail closed.
+
+## A7. CORS
+
+CORS is configured in `backend/app/main.py:68-74`:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+The origin list is read from `CORS_ORIGINS`.
+
+`backend/app/config.py:31-32`
+
+```python
+cors_origins_raw: str = Field("*", alias="CORS_ORIGINS")
+```
+
+Parsing occurs at `backend/app/config.py:67-69`:
+
+```python
+@property
+def cors_origins(self) -> list[str]:
+    return [
+        o.strip()
+        for o in self.cors_origins_raw.split(",")
+        if o.strip()
+    ]
+```
+
+Effective configured origins:
+
+```text
+http://localhost:3000
+http://localhost:5173
+```
+
+Therefore `http://localhost:3000` is allowed.
+
+Authorization headers are allowed because:
+
+```python
+allow_headers=["*"]
+```
+
+Credentials are allowed because:
+
+```python
+allow_credentials=True
+```
+
+All HTTP methods are allowed:
+
+```python
+allow_methods=["*"]
+```
 
 ---
 
-# Part D — Current behavior versus desired behavior
+# Part B — Admin order endpoints
 
-| Item | Status | Current behavior |
-|---|---|---|
-| **D1. Empty visible history + expired session on open should silently re-session** | **Deviating** | Opening chat only sets `isOpen=true`. It neither checks local age nor validates the session. The stale ID remains silently present until the first send. No popup appears merely on open, but no silent re-session occurs either. |
-| **D2. Empty visible history + expired session, first message should silently re-session and send** | **Deviating** | The first user bubble is appended, the stale ID receives a POST, the 404 sets `sessionExpired=true`, and the UI requires the user to click “Démarrer une nouvelle conversation.” Only after that click is the pending message resent. |
-| **D3. Non-empty visible history + expired session, new message should show popup/button** | **Matching** | A 404 sets `sessionExpired=true`; because the message list is non-empty, the amber expiry block and start-new-chat button render. The pending message is retained for resend after confirmation. |
-| **D4. Non-empty visible history + valid session, reload should preserve visible history** | **Deviating** | Only the session ID and local creation timestamp persist. `messages` is React state initialized to `[]`, and there is no history endpoint, so visible history disappears after reload even if the backend session remains valid. |
-| **D5. Reset should clear server session too** | **Deviating** | Reset removes localStorage and React state only. It never calls the existing `DELETE /chat/session/{id}` endpoint, so a valid server-side session remains until expiry/eviction/restart. |
-| **D6. Pasting 3,000 chars should be prevented client-side** | **Deviating** | The textarea has no `maxLength` and no counter. The request reaches the backend and is rejected by the 2,000-character Pydantic limit with HTTP 422, which the frontend displays as a generic service-unavailable error. |
+All order endpoints require Bearer JWT authentication through `get_current_admin`.
+
+## B1. List orders
+
+```text
+PATH: GET /api/v1/admin/orders
+AUTH: Required
+```
+
+`backend/app/api/v1/admin.py:35-51`
+
+```python
+@router.get(
+    "/orders",
+    response_model=AdminOrderListResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+def list_orders(
+    status: str | None = Query(
+        None,
+        pattern="^(pending|confirmed|cancelled|delivered)$",
+    ),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> AdminOrderListResponse:
+```
+
+### Query parameters
+
+| Parameter | Type | Default | Constraints |
+|---|---:|---:|---|
+| `status` | string/null | null | `pending`, `confirmed`, `cancelled`, `delivered` |
+| `page` | integer | 1 | minimum 1 |
+| `page_size` | integer | 20 | 1–100 |
+
+### Response
+
+`backend/app/schemas/admin.py:21-38`
+
+```python
+class AdminOrderSummary(BaseModel):
+    id: int
+    created_at: str
+    customer_name: str
+    customer_phone: str
+    wilaya: str
+    city: str
+    total: float
+    status: str
+    item_count: int
+
+
+class AdminOrderListResponse(BaseModel):
+    items: list[AdminOrderSummary]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+```
+
+Orders are sorted newest first in `order_service.py:230-235`.
+
+The route accepts `delivered` as a filter value, but there is no endpoint in this code that changes an order to `delivered`.
+
+## B2. Get one order
+
+```text
+PATH: GET /api/v1/admin/orders/{order_id}
+REQ: Integer order_id path parameter
+RES: AdminOrderDetail
+AUTH: Required
+```
+
+`backend/app/api/v1/admin.py:60-70`
+
+```python
+@router.get(
+    "/orders/{order_id}",
+    response_model=AdminOrderDetail,
+    dependencies=[Depends(get_current_admin)],
+)
+def get_order(order_id: int) -> AdminOrderDetail:
+    result = order_service.get_order_detail(order_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Commande introuvable.",
+        )
+    return result
+```
+
+The order ID is an integer.
+
+Response schema, `backend/app/schemas/admin.py:41-65`:
+
+```python
+class AdminOrderItemDetail(BaseModel):
+    id: int
+    category: str
+    product_id: int
+    brand: str
+    name: str
+    specification: str
+    size: str | None
+    unit_price: float
+    quantity: int
+    line_total: float
+
+
+class AdminOrderDetail(BaseModel):
+    id: int
+    created_at: str
+    customer_name: str
+    customer_phone: str
+    customer_email: str | None
+    wilaya: str
+    city: str
+    notes: str | None
+    total: float
+    status: str
+    items: list[AdminOrderItemDetail]
+```
+
+Order items use frozen snapshots. Database evidence from `backend/app/db/models/tables.py`:
+
+```python
+brand_snapshot
+name_snapshot
+specification_snapshot
+size_snapshot
+unit_price_snapshot
+```
+
+The detail serializer reads those snapshots, not current product data:
+
+```python
+"brand": it.brand_snapshot,
+"name": it.name_snapshot,
+"specification": it.specification_snapshot,
+"size": it.size_snapshot,
+"unit_price": float(it.unit_price_snapshot),
+```
+
+## B3. Confirm order
+
+```text
+PATH: POST /api/v1/admin/orders/{order_id}/confirm
+REQ: Integer order_id; no request body
+RES: OrderStatusResponse
+AUTH: Required
+```
+
+Route, `backend/app/api/v1/admin.py:73-84`:
+
+```python
+@router.post(
+    "/orders/{order_id}/confirm",
+    response_model=OrderStatusResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+def confirm_order_route(order_id: int) -> OrderStatusResponse:
+    try:
+        result = order_service.confirm_order(order_id)
+    except OrderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return result
+```
+
+Success uses the default HTTP 200 status.
+
+Response schema:
+
+```python
+class OrderStatusResponse(BaseModel):
+    order_id: int
+    status: str
+```
+
+The service internally also returns `total`, but the response model contains only `order_id` and `status`; FastAPI response-model filtering omits the extra `total`.
+
+### Stock decrement
+
+`backend/app/services/order_service.py:168-203`
+
+```python
+with SessionLocal() as session:
+    order = session.get(Order, order_id)
+    ...
+
+    # First pass: verify all items have enough stock
+    for it in items:
+        ...
+        if row.quantity < it.quantity:
+            raise OrderError(
+                f"Stock insuffisant pour {it.brand_snapshot} : "
+                f"{row.quantity} disponible(s), "
+                f"{it.quantity} requis."
+            )
+
+    # Second pass: decrement
+    for it in items:
+        model = CATEGORY_MAP[it.category]
+        row = session.get(model, it.product_id)
+        row.quantity -= it.quantity
+
+    order.status = "confirmed"
+    session.commit()
+```
+
+All checks, decrements, status update, and commit occur in one SQLAlchemy session/transaction. There is no explicit row lock such as `SELECT ... FOR UPDATE`, so simultaneous confirmations could still have a concurrency race at the database level.
+
+### Failure behavior
+
+All `OrderError` cases return HTTP 400:
+
+```json
+{
+  "detail": "<customer-safe French error>"
+}
+```
+
+Cases include:
+
+- Order not found.
+- Already confirmed.
+- Cancelled order.
+- Missing product.
+- Unknown category.
+- Insufficient stock.
+
+Insufficient-stock message:
+
+```text
+Stock insuffisant pour <brand> : <available> disponible(s), <required> requis.
+```
+
+## B4. Cancel order
+
+```text
+PATH: POST /api/v1/admin/orders/{order_id}/cancel
+REQ: Integer order_id; no request body
+RES: OrderStatusResponse
+AUTH: Required
+```
+
+Route, `backend/app/api/v1/admin.py:87-98`:
+
+```python
+@router.post(
+    "/orders/{order_id}/cancel",
+    response_model=OrderStatusResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+def cancel_order_route(order_id: int) -> OrderStatusResponse:
+    try:
+        result = order_service.cancel_order(order_id)
+    except OrderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return result
+```
+
+Success status: HTTP 200.
+
+Response:
+
+```json
+{
+  "order_id": 123,
+  "status": "cancelled"
+}
+```
+
+Cancellation logic, `backend/app/services/order_service.py:315-333`:
+
+```python
+if order is None:
+    raise OrderError(f"Commande introuvable : #{order_id}")
+if order.status == "confirmed":
+    raise OrderError(
+        "Impossible d'annuler une commande déjà confirmée."
+    )
+if order.status == "cancelled":
+    raise OrderError("Cette commande est déjà annulée.")
+
+order.status = "cancelled"
+session.commit()
+```
+
+Only pending—or another unrecognized non-confirmed/non-cancelled status—can be cancelled. The implementation does not explicitly reject `delivered`, so if an order somehow already had status `delivered`, this service would currently allow it to become cancelled.
+
+Stock is not restored because stock is only decremented on confirmation.
+
+## B5. Other admin order endpoints
+
+No additional admin order routes were found.
+
+Missing:
+
+- Delete order.
+- Archive order.
+- Update order notes.
+- Mark delivered.
+- Reopen order.
+- Restore/revert confirmed stock.
+- Bulk order actions.
 
 ---
 
-# Root-cause summary
+# Part C — Admin product and stock endpoints
 
-The “session expired, start new chat” UI appears after an apparently empty chat because the frontend persists the backend session ID but does not persist visible messages or validate the session on open. After a reload, `messages` is empty while a stale ID can remain in localStorage. On the first send, the frontend appends the user's message before posting to the stale session; the backend returns the same 404 for unknown and expired sessions; the frontend then sets `sessionExpired=true`. Because the just-added user bubble makes `messages.length > 0`, the widget enters its non-empty render branch and displays the expiry block and button. The code never distinguishes a first message in an otherwise empty visible conversation from a message that extends an established conversation. The complete UX deviations are: no silent re-session on open, no silent first-message recovery, no visible-history persistence across reloads, no server-side deletion on reset, and no client-side 2,000-character enforcement. The non-empty-history expiry popup behavior is the only listed desired behavior currently matched.
+The backend calls this area “stock,” not “products.” All stock endpoints require Bearer authentication.
+
+## C1. List stock/products
+
+```text
+PATH: GET /api/v1/admin/stock
+AUTH: Required
+```
+
+`backend/app/api/v1/admin.py:111-125`
+
+```python
+@router.get(
+    "/stock",
+    response_model=AdminStockListResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+def list_stock(
+    category: str | None = Query(
+        None,
+        pattern=(
+            "^(engine_oil|gearbox_oil|oil_filter|additional)$"
+        ),
+    ),
+    q: str | None = Query(None, max_length=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> AdminStockListResponse:
+```
+
+### Query parameters
+
+| Parameter | Default | Constraints |
+|---|---:|---|
+| `category` | null | `engine_oil`, `gearbox_oil`, `oil_filter`, `additional` |
+| `q` | null | maximum 200 characters |
+| `page` | 1 | minimum 1 |
+| `page_size` | 20 | 1–100 |
+
+Response, `backend/app/schemas/admin.py:75-95`:
+
+```python
+class AdminStockItem(BaseModel):
+    category: str
+    id: int
+    brand: str
+    name: str
+    specification: str
+    viscosity: str | None = None
+    size: str | None = None
+    price: float
+    quantity: int
+    in_stock: bool
+    image_front_url: str | None = None
+    image_back_url: str | None = None
+```
+
+The exact stock field is:
+
+```text
+quantity
+```
+
+The paginated wrapper is:
+
+```python
+class AdminStockListResponse(BaseModel):
+    items: list[AdminStockItem]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+```
+
+The service explicitly adds `quantity`:
+
+`backend/app/services/product_service.py:236-240`
+
+```python
+def _serialize_admin(row, category: str) -> dict:
+    base = _serialize(row, category)
+    base["quantity"] = row.quantity
+    return base
+```
+
+The admin list includes out-of-stock products.
+
+## C2. Get one admin product
+
+**MISSING.**
+
+There is no:
+
+```text
+GET /api/v1/admin/stock/{category}/{product_id}
+```
+
+The public product-detail endpoint exists, but it does not expose `quantity`. An admin dashboard requiring one-item admin detail must currently obtain the item from the paginated admin list or use the public detail without quantity.
+
+## C3. Create product
+
+```text
+PATH: POST /api/v1/admin/stock
+REQ: AdminStockCreate JSON body
+RES: AdminStockItem
+AUTH: Required
+SUCCESS: HTTP 201
+```
+
+Route, `backend/app/api/v1/admin.py:150-163`:
+
+```python
+@router.post(
+    "/stock",
+    response_model=AdminStockItem,
+    status_code=201,
+    dependencies=[Depends(get_current_admin)],
+)
+def create_stock(payload: AdminStockCreate) -> AdminStockItem:
+```
+
+Request schema, `backend/app/schemas/admin.py:107-119`:
+
+```python
+class AdminStockCreate(BaseModel):
+    category: str = Field(
+        ...,
+        pattern=(
+            "^(engine_oil|gearbox_oil|oil_filter|additional)$"
+        ),
+    )
+    brand: str = Field(..., min_length=1, max_length=64)
+    specification: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+    )
+    viscosity: str | None = Field(None, max_length=16)
+    size: str | None = Field(None, max_length=16)
+    price: float = Field(..., ge=0)
+    quantity: int = Field(0, ge=0)
+    category_type: str | None = Field(
+        None,
+        max_length=64,
+        description=(
+            "Required for 'additional' category "
+            "(e.g., 'liquide de frein', 'additif')."
+        ),
+    )
+```
+
+### Required fields
+
+- `category`
+- `brand`
+- `specification`
+- `price`
+
+### Optional/defaulted fields
+
+- `viscosity`: null
+- `size`: null
+- `quantity`: defaults to 0
+- `category_type`: null generally, but service-required for `additional`
+
+There is no request `name` field. The display name is computed by the service from brand, viscosity, and size.
+
+Valid categories:
+
+```text
+engine_oil
+gearbox_oil
+oil_filter
+additional
+```
+
+For `additional`, `category_type` is enforced in the service:
+
+```python
+if not ct:
+    raise ValueError(
+        "category_type is required for 'additional' items "
+        "(e.g., 'liquide de frein', 'additif')."
+    )
+```
+
+## C4. Update product
+
+```text
+PATH: PATCH /api/v1/admin/stock/{category}/{product_id}
+REQ: AdminStockUpdate JSON body
+RES: AdminStockItem
+AUTH: Required
+```
+
+Route, `backend/app/api/v1/admin.py:128-147`:
+
+```python
+@router.patch(
+    "/stock/{category}/{product_id}",
+    response_model=AdminStockItem,
+    dependencies=[Depends(get_current_admin)],
+)
+def update_stock(
+    category: str,
+    product_id: int,
+    payload: AdminStockUpdate,
+) -> AdminStockItem:
+    result = product_service.update_stock_item(
+        category,
+        product_id,
+        payload.model_dump(exclude_unset=True),
+    )
+```
+
+This is a partial update, not a full replacement.
+
+Request schema:
+
+```python
+class AdminStockUpdate(BaseModel):
+    brand: str | None = ...
+    specification: str | None = ...
+    viscosity: str | None = ...
+    size: str | None = ...
+    price: float | None = ...
+    quantity: int | None = ...
+    category_type: str | None = ...
+```
+
+All fields are optional.
+
+The category itself cannot be changed because it is a path parameter and is not part of `AdminStockUpdate`.
+
+The service silently ignores update fields that do not apply to the selected category. It also skips fields whose value is `None`, so this endpoint cannot use JSON `null` to clear an existing optional field.
+
+Responses:
+
+- 200 with updated `AdminStockItem`.
+- 400 for unknown category/validation errors.
+- 404 `{"detail":"Produit introuvable."}` when absent.
+
+## C5. Delete product
+
+```text
+PATH: DELETE /api/v1/admin/stock/{category}/{product_id}
+REQ: Category and integer product_id path parameters
+RES: Empty body
+AUTH: Required
+SUCCESS: HTTP 204
+```
+
+Route, `backend/app/api/v1/admin.py:166-178`:
+
+```python
+@router.delete(
+    "/stock/{category}/{product_id}",
+    status_code=204,
+    dependencies=[Depends(get_current_admin)],
+)
+def delete_stock(category: str, product_id: int) -> None:
+```
+
+Deletion is a hard database delete:
+
+`backend/app/services/product_service.py:326-338`
+
+```python
+row = session.get(model, product_id)
+if row is None:
+    return False
+session.delete(row)
+session.commit()
+return True
+```
+
+There is no soft-delete flag.
+
+There is no pre-delete check for existing orders.
+
+Order history remains possible because `OrderItem.product_id` is a plain integer, not a foreign key to each category table, and order items retain frozen snapshots:
+
+`backend/app/db/models/tables.py:172-193`
+
+```python
+product_id: Mapped[int] = mapped_column(Integer)
+
+brand_snapshot
+name_snapshot
+specification_snapshot
+size_snapshot
+unit_price_snapshot
+```
+
+Therefore deleting a stock item does not erase the historical order snapshot.
+
+Potential image behavior: `delete_stock_item` does not explicitly remove associated Cloudinary images before deleting the row. This can leave Cloudinary assets orphaned.
+
+## C6. Category-specific endpoints
+
+There are no separate admin route families for engine oil, gearbox oil, filters, or additional products.
+
+All categories use generic routes with `{category}` where needed:
+
+```text
+PATCH  /admin/stock/{category}/{product_id}
+DELETE /admin/stock/{category}/{product_id}
+POST   /admin/stock/{category}/{product_id}/images
+DELETE /admin/stock/{category}/{product_id}/images/{position}
+```
+
+Creation includes category in the JSON body.
+
+---
+
+# Part D — Admin image endpoints
+
+## D1. Upload front image
+
+There is no separate front-only URL. Front and back share one endpoint:
+
+```text
+PATH: POST /api/v1/admin/stock/{category}/{product_id}/images
+AUTH: Required
+CONTENT-TYPE: multipart/form-data
+FILE FIELD: front
+RES: AdminStockItem
+```
+
+`backend/app/api/v1/admin.py:184-213`
+
+```python
+front: UploadFile | None = File(
+    None,
+    description="Face avant (JPEG/PNG/WEBP, max 5 MB)",
+)
+back: UploadFile | None = File(
+    None,
+    description="Face arrière (JPEG/PNG/WEBP, max 5 MB)",
+)
+```
+
+Accepted MIME types, `product_service.py:344-358`:
+
+```python
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+```
+
+Validation rejects:
+
+- Empty files.
+- Unsupported content types.
+- Files larger than 5 MiB.
+
+Response is the complete updated `AdminStockItem`, including:
+
+```text
+image_front_url
+image_back_url
+```
+
+No Cloudinary public ID is returned.
+
+Old front image replacement logic, `product_service.py:391-397`:
+
+```python
+new_url = cloudinary_client.upload_image(front_bytes)
+old_url = row.image_front_url
+row.image_front_url = new_url
+if old_url and old_url != new_url:
+    cloudinary_client.delete_image_by_url(old_url)
+```
+
+The old asset is deleted only after a successful new upload.
+
+Possible errors:
+
+- 400 for invalid file/category/no images.
+- 404 if product is absent.
+- 503 if Cloudinary is not configured.
+
+## D2. Upload back image
+
+Same endpoint:
+
+```text
+POST /api/v1/admin/stock/{category}/{product_id}/images
+```
+
+Multipart field:
+
+```text
+back
+```
+
+Back-image replacement, `product_service.py:399-405`:
+
+```python
+new_url = cloudinary_client.upload_image(back_bytes)
+old_url = row.image_back_url
+row.image_back_url = new_url
+if old_url and old_url != new_url:
+    cloudinary_client.delete_image_by_url(old_url)
+```
+
+Constraints and response are identical to front image upload.
+
+## D3. Delete image
+
+```text
+PATH: DELETE /api/v1/admin/stock/{category}/{product_id}/images/{position}
+AUTH: Required
+POSITION: front | back
+RES: AdminStockItem
+```
+
+Route, `backend/app/api/v1/admin.py:216-233`:
+
+```python
+@router.delete(
+    "/stock/{category}/{product_id}/images/{position}",
+    response_model=AdminStockItem,
+    dependencies=[Depends(get_current_admin)],
+)
+```
+
+Position validation, `product_service.py:417-423`:
+
+```python
+if position not in ("front", "back"):
+    raise ValueError("position must be 'front' or 'back'")
+
+column = (
+    "image_front_url"
+    if position == "front"
+    else "image_back_url"
+)
+```
+
+Deletion behavior, lines 425–435:
+
+```python
+url = getattr(row, column)
+if url:
+    cloudinary_client.delete_image_by_url(url)
+setattr(row, column, None)
+session.commit()
+```
+
+It performs a best-effort Cloudinary deletion and clears the DB URL. The endpoint does not accept a public ID.
+
+`delete_image_by_url` derives the Cloudinary public ID from the stored URL and calls:
+
+```python
+cloudinary.uploader.destroy(public_id, resource_type="image")
+```
+
+Cloudinary deletion failures are swallowed by `delete_image_by_url`; the database field is still cleared.
+
+## D4. Combined image endpoint
+
+Yes. The same upload endpoint accepts either or both files:
+
+```text
+POST /api/v1/admin/stock/{category}/{product_id}/images
+```
+
+Request:
+
+```text
+multipart/form-data
+front: optional file
+back: optional file
+```
+
+At least one must be supplied:
+
+```python
+if front_bytes is None and back_bytes is None:
+    raise ValueError("Aucune image fournie.")
+```
+
+There are no separate front/back upload routes.
+
+---
+
+# Part E — Frontend admin scaffolding
+
+Commands returned:
+
+```text
+--- APP ADMIN ---
+(no output)
+
+--- ADMIN DIRECTORIES ---
+(no output)
+
+--- ADMIN REFERENCES ---
+(no output)
+```
+
+## E1. Does `frontend/src/app/admin` exist?
+
+No. `frontend/src/app/admin` does not exist.
+
+## E2. Existing admin components, hooks, or types
+
+None were found under `frontend/src`.
+
+There are no:
+
+- Admin routes.
+- Admin login components.
+- JWT storage helpers.
+- Auth guards.
+- Admin API helpers.
+- Order-management components.
+- Inventory-management components.
+- Image-upload components.
+- Admin types/hooks.
+
+## E3. User-visible admin links
+
+No `/admin`, `Admin`, or admin-related references were found in frontend TypeScript/TSX files.
+
+The customer Navbar and Footer do not expose an admin link. This matches the requirement that the admin panel remain a separate URL.
+
+---
+
+# Admin endpoint coverage summary
+
+| Method | Path | Auth | Shape OK |
+|---|---|---:|---:|
+| POST | `/api/v1/admin/login` | No | Yes |
+| GET | `/api/v1/admin/orders` | Yes | Yes |
+| GET | `/api/v1/admin/orders/{order_id}` | Yes | Yes |
+| POST | `/api/v1/admin/orders/{order_id}/confirm` | Yes | Yes |
+| POST | `/api/v1/admin/orders/{order_id}/cancel` | Yes | Yes |
+| GET | `/api/v1/admin/stock` | Yes | Yes |
+| POST | `/api/v1/admin/stock` | Yes | Yes |
+| PATCH | `/api/v1/admin/stock/{category}/{product_id}` | Yes | Yes |
+| DELETE | `/api/v1/admin/stock/{category}/{product_id}` | Yes | Yes |
+| POST | `/api/v1/admin/stock/{category}/{product_id}/images` | Yes | Yes |
+| DELETE | `/api/v1/admin/stock/{category}/{product_id}/images/{position}` | Yes | Yes |
+
+“Shape OK” means the route has a sufficiently explicit request/response schema for building the corresponding frontend action. The 204 delete route intentionally has no response schema.
+
+---
+
+# Gaps
+
+The following capabilities do not have corresponding backend endpoints:
+
+1. **Get one admin stock item with quantity**
+   - Missing `GET /api/v1/admin/stock/{category}/{product_id}`.
+
+2. **Mark an order delivered**
+   - `delivered` is accepted by the list filter, but no route changes an order to that status.
+
+3. **Delete or archive orders**
+   - No delete/archive endpoint.
+
+4. **Update order notes or general order fields**
+   - No admin order-edit endpoint.
+
+5. **Bulk order or stock actions**
+   - None.
+
+6. **Restore/revert a confirmed order**
+   - No route restores decremented stock or reopens confirmation.
+
+7. **Dedicated front/back upload endpoints**
+   - Not strictly required because the combined endpoint supports both positions.
+
+8. **Cloudinary cleanup during product deletion**
+   - Product deletion hard-deletes the DB row but does not delete its stored image assets.
+
+9. **Explicit database concurrency locking during confirmation**
+   - Confirmation uses one transaction but no row-level lock, so simultaneous confirmation requests may race.
+
+10. **Strict cancellation check for `delivered`**
+    - Cancellation rejects only `confirmed` and `cancelled`; it does not explicitly reject `delivered`.
+
+The core frontend admin specification—login, list/detail orders, confirm/cancel, stock list/create/update/delete, and front/back image management—is otherwise covered.
+
+Only `frontend/.env.example` was modified. No backend file or other frontend source file was changed for this task.

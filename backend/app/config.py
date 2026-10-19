@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
 
     jwt_expire_minutes: int = Field(480, alias="JWT_EXPIRE_MINUTES")
+    cookie_secure: bool = Field(False, alias="COOKIE_SECURE")
 
 
     cloudinary_cloud_name: str = Field("", alias="CLOUDINARY_CLOUD_NAME")

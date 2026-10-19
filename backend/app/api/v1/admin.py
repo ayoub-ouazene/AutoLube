@@ -1,17 +1,22 @@
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from app.config import settings
 from app.core.security import create_access_token, verify_credentials
-from app.schemas.admin import LoginRequest, LoginResponse
+from app.schemas.admin import (
+    AdminMeResponse,
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+)
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest) -> LoginResponse:
-    """Exchange admin credentials for a JWT."""
+def login(payload: LoginRequest, response: Response) -> LoginResponse:
+    """Exchange admin credentials for a JWT (cookie + JSON)."""
     if not verify_credentials(payload.username, payload.password):
         # Generic message — never reveal whether the username or password was wrong
         raise HTTPException(
@@ -20,14 +25,54 @@ def login(payload: LoginRequest) -> LoginResponse:
         )
 
     token = create_access_token()
+    expires_in = settings.jwt_expire_minutes * 60
+
+    # Set httpOnly cookie for the browser flow.
+    response.set_cookie(
+        key="autolube_admin_token",
+        value=token,
+        max_age=expires_in,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+
+    # Keep JSON response for curl/Swagger/debugging.
     return LoginResponse(
         access_token=token,
-        expires_in=settings.jwt_expire_minutes * 60,
+        expires_in=expires_in,
     )
 
 
 
+@router.post("/logout", response_model=LogoutResponse)
+def logout(response: Response) -> LogoutResponse:
+    """Clear the admin auth cookie."""
+    response.delete_cookie(
+        key="autolube_admin_token",
+        path="/",
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+    )
+    return LogoutResponse(ok=True)
+
+
 from app.api.deps import get_current_admin
+
+
+@router.get(
+    "/me",
+    response_model=AdminMeResponse,
+    dependencies=[Depends(get_current_admin)],
+)
+def me() -> AdminMeResponse:
+    """Return the currently authenticated admin username."""
+    return AdminMeResponse(username=settings.admin_username)
+
+
+
 from app.schemas.admin import AdminOrderListResponse
 from app.services import order_service
 

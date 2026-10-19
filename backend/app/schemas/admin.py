@@ -12,6 +12,14 @@ class LoginResponse(BaseModel):
     expires_in: int = Field(..., description="Token lifetime in seconds.")
 
 
+class AdminMeResponse(BaseModel):
+    username: str
+
+
+class LogoutResponse(BaseModel):
+    ok: bool = True
+
+
 
 
 
