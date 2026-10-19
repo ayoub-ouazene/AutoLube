@@ -240,6 +240,18 @@ def _serialize_admin(row, category: str) -> dict:
     return base
 
 
+def get_stock_item(category: str, product_id: int) -> dict | None:
+    """Fetch a single stock item by category and id, admin view."""
+    if category not in CATEGORY_MAP:
+        raise ValueError(f"Unknown category: {category}")
+    model = CATEGORY_MAP[category]
+    with SessionLocal() as session:
+        row = session.get(model, product_id)
+        if row is None:
+            return None
+        return _serialize_admin(row, category)
+
+
 def update_stock_item(category: str, product_id: int, updates: dict) -> dict | None:
     """Apply partial updates to a stock item. Returns the updated item, or None
     if the product doesn't exist. Raises ValueError on category mismatch."""

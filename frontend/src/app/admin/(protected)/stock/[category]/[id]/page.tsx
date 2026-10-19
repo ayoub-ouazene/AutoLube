@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { useConfirm } from "@/components/admin/ConfirmProvider";
 import { StockForm } from "@/components/admin/StockForm";
 import {
   type AdminStockItem,
@@ -25,6 +26,7 @@ export default function EditStockPage() {
   const params = useParams<{ category: string; id: string }>();
   const router = useRouter();
   const { handleApiError } = useAdminAuth();
+  const confirm = useConfirm();
 
   const category = params.category as StockCategory;
   const id = parseInt(params.id, 10);
@@ -106,8 +108,14 @@ export default function EditStockPage() {
 
   const handleDelete = async () => {
     if (!item) return;
-    const confirmed = window.confirm(
-      `Supprimer « ${item.name} » ? Cette action est irréversible.`
+    const confirmed = await confirm(
+      `Le produit « ${item.name} » sera définitivement supprimé. Cette action est irréversible.`,
+      {
+        title: "Supprimer ce produit ?",
+        confirmLabel: "Supprimer",
+        cancelLabel: "Annuler",
+        danger: true,
+      }
     );
     if (!confirmed) return;
     try {

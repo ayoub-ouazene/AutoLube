@@ -4,6 +4,7 @@ import { type ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { ConfirmProvider } from "@/components/admin/ConfirmProvider";
 
 export default function ProtectedAdminLayout({
   children,
@@ -32,9 +33,11 @@ export default function ProtectedAdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <AdminHeader />
-      <main>{children}</main>
-    </div>
+    <ConfirmProvider>
+      <div className="min-h-screen bg-neutral-50">
+        <AdminHeader />
+        <main>{children}</main>
+      </div>
+    </ConfirmProvider>
   );
 }

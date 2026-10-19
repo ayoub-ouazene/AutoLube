@@ -170,6 +170,25 @@ def list_stock(
     )
 
 
+@router.get(
+    "/stock/{category}/{product_id}",
+    response_model=AdminStockItem,
+    dependencies=[Depends(get_current_admin)],
+)
+def get_stock(category: str, product_id: int) -> AdminStockItem:
+    """Get a single stock item by category and id (includes quantity)."""
+    try:
+        result = product_service.get_stock_item(category, product_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Produit introuvable.",
+        )
+    return result
+
+
 @router.patch(
     "/stock/{category}/{product_id}",
     response_model=AdminStockItem,

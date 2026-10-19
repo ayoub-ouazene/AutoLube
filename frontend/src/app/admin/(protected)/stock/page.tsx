@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { useConfirm } from "@/components/admin/ConfirmProvider";
 import {
   type AdminStockItem,
   type AdminStockListResponse,
@@ -20,6 +21,7 @@ export default function StockListPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { handleApiError } = useAdminAuth();
+  const confirm = useConfirm();
 
   const category = (searchParams.get("category") ?? "") as StockCategory | "";
   const q = searchParams.get("q") ?? "";
@@ -87,8 +89,14 @@ export default function StockListPage() {
 
   const handleDelete = useCallback(
     async (item: AdminStockItem) => {
-      const confirmed = window.confirm(
-        `Supprimer « ${item.name} » ? Cette action est irréversible.`
+      const confirmed = await confirm(
+        `Le produit « ${item.name} » sera définitivement supprimé. Cette action est irréversible.`,
+        {
+          title: "Supprimer ce produit ?",
+          confirmLabel: "Supprimer",
+          cancelLabel: "Annuler",
+          danger: true,
+        }
       );
       if (!confirmed) return;
       try {
@@ -99,7 +107,7 @@ export default function StockListPage() {
         if (message) setError(message);
       }
     },
-    [load, handleApiError]
+    [load, handleApiError, confirm]
   );
 
   const pageCount = data

@@ -1,4 +1,4 @@
-import { apiAdminFetch } from "./adminAuth";
+import { AdminAuthError, apiAdminFetch } from "./adminAuth";
 
 export type StockCategory =
   | "engine_oil"
@@ -102,16 +102,29 @@ export async function deleteStock(
   });
 }
 
+export async function getStockItem(
+  category: StockCategory,
+  id: number
+): Promise<AdminStockItem> {
+  return apiAdminFetch<AdminStockItem>(
+    `/admin/stock/${category}/${id}`
+  );
+}
+
+/**
+ * Fetch a single stock item by category and id.
+ * Uses the direct GET endpoint (Phase 2.5) — no more pagination loop.
+ */
 export async function findStockItem(
   category: StockCategory,
   id: number
 ): Promise<AdminStockItem | null> {
-  let page = 1;
-  while (true) {
-    const res = await listStock({ category, page, page_size: 100 });
-    const found = res.items.find((it) => it.id === id);
-    if (found) return found;
-    if (!res.has_next) return null;
-    page += 1;
+  try {
+    return await getStockItem(category, id);
+  } catch (err) {
+    if (err instanceof AdminAuthError && err.status === 404) {
+      return null;
+    }
+    throw err;
   }
 }
