@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { useConfirm } from "@/components/admin/ConfirmProvider";
 import { StockForm } from "@/components/admin/StockForm";
+import { ImageManager } from "@/components/admin/ImageManager";
 import {
   type AdminStockItem,
   type StockCategory,
@@ -163,17 +164,20 @@ export default function EditStockPage() {
           onClick={handleDelete}
           className="text-sm border border-red-200 text-red-700 px-3 py-1.5 rounded hover:bg-red-50"
         >
-          Supprimer
+          Supprimer le produit
         </button>
       </div>
-      <StockForm
-        mode="edit"
-        initial={item}
-        onSubmit={handleSubmit}
-        onCancel={() => router.replace("/admin/stock")}
-        submitting={submitting}
-        errorMessage={submitError}
-      />
+      <div className="space-y-6">
+        <StockForm
+          mode="edit"
+          initial={item}
+          onSubmit={handleSubmit}
+          onCancel={() => router.replace("/admin/stock")}
+          submitting={submitting}
+          errorMessage={submitError}
+        />
+        <ImageManager item={item} onUpdated={setItem} />
+      </div>
     </div>
   );
 }

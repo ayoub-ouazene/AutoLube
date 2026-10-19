@@ -128,3 +128,30 @@ export async function findStockItem(
     throw err;
   }
 }
+
+export type ImagePosition = "front" | "back";
+
+export async function uploadStockImage(
+  category: StockCategory,
+  id: number,
+  position: ImagePosition,
+  file: File
+): Promise<AdminStockItem> {
+  const form = new FormData();
+  form.append(position, file);
+  return apiAdminFetch<AdminStockItem>(
+    `/admin/stock/${category}/${id}/images`,
+    { method: "POST", body: form }
+  );
+}
+
+export async function deleteStockImage(
+  category: StockCategory,
+  id: number,
+  position: ImagePosition
+): Promise<AdminStockItem> {
+  return apiAdminFetch<AdminStockItem>(
+    `/admin/stock/${category}/${id}/images/${position}`,
+    { method: "DELETE" }
+  );
+}
