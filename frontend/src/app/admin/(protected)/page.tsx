@@ -25,15 +25,18 @@ export default function AdminDashboardPage() {
           </span>
         </Link>
 
-        <div className="bg-white border border-neutral-200 rounded-md p-6">
+        <Link
+          href="/admin/orders"
+          className="block bg-white border border-neutral-200 rounded-md p-6 hover:border-neutral-400 transition-colors"
+        >
           <h3 className="font-medium text-neutral-900 mb-1">Commandes</h3>
           <p className="text-sm text-neutral-500 mb-4">
             Consultez, confirmez et annulez les commandes clients.
           </p>
-          <span className="text-xs text-neutral-400">
-            Disponible à une étape ultérieure.
+          <span className="text-sm text-neutral-700 underline">
+            Voir les commandes →
           </span>
-        </div>
+        </Link>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ export function AdminHeader() {
   const navItems = [
     { href: "/admin", label: "Tableau de bord" },
     { href: "/admin/stock", label: "Stock" },
+    { href: "/admin/orders", label: "Commandes" },
   ];
 
   return (
