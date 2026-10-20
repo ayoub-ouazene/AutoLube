@@ -248,14 +248,41 @@ export function StockForm({
           <label className="block text-sm font-medium text-neutral-700 mb-1">
             Quantité *
           </label>
-          <input
-            type="number"
-            step="1"
-            min="0"
-            value={values.quantity}
-            onChange={(e) => set("quantity", e.target.value)}
-            className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
-          />
+          <div className="flex items-stretch rounded border border-neutral-300 focus-within:border-neutral-900">
+            <button
+              type="button"
+              onClick={() =>
+                set(
+                  "quantity",
+                  String(Math.max(0, (parseInt(values.quantity, 10) || 0) - 1))
+                )
+              }
+              disabled={submitting || (parseInt(values.quantity, 10) || 0) <= 0}
+              aria-label="Diminuer la quantité"
+              className="w-10 border-r border-neutral-300 text-lg text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={values.quantity}
+              onChange={(e) => set("quantity", e.target.value)}
+              className="min-w-0 flex-1 px-3 py-2 text-center text-sm focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                set("quantity", String((parseInt(values.quantity, 10) || 0) + 1))
+              }
+              disabled={submitting}
+              aria-label="Augmenter la quantité"
+              className="w-10 border-l border-neutral-300 text-lg text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 

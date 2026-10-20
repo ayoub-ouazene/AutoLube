@@ -58,11 +58,11 @@ export default function NewStockPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold text-neutral-900 mb-6">
         Nouveau produit
       </h1>
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
         <StockForm
           mode="create"
           onSubmit={handleSubmit}
@@ -71,7 +71,7 @@ export default function NewStockPage() {
           errorMessage={error}
         />
 
-        <div className="bg-white border border-neutral-200 rounded-md p-6">
+        <div className="bg-white border border-neutral-200 rounded-md p-6 md:sticky md:top-6">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-neutral-900">
               Images du produit (optionnel)
