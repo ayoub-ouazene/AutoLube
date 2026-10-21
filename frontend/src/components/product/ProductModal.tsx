@@ -66,7 +66,7 @@ export function ProductModal({
           </div>
 
           {/* RIGHT: info */}
-          <div>
+          <div className="flex h-full flex-col">
             <p className="text-xs uppercase tracking-wide text-neutral-500">
               {product.brand}
             </p>
@@ -97,44 +97,46 @@ export function ProductModal({
               <dd className="text-neutral-900">{product.specification || "—"}</dd>
             </dl>
 
-            {/* Quantity selector */}
-            <div className="mt-4 flex items-center gap-3">
-              <span className="text-sm text-neutral-700">Quantité</span>
-              <div className="flex items-center border border-neutral-300 rounded-md">
-                <button
-                  type="button"
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
-                  disabled={qty <= 1 || !product.in_stock}
-                  aria-label="Diminuer la quantité"
-                >
-                  −
-                </button>
-                <span className="w-10 text-center text-sm font-medium">{qty}</span>
-                <button
-                  type="button"
-                  onClick={() => setQty((q) => q + 1)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
-                  disabled={!product.in_stock}
-                  aria-label="Augmenter la quantité"
-                >
-                  +
-                </button>
+            <div className="mt-auto pt-6">
+              {/* Quantity selector */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-neutral-700">Quantité</span>
+                <div className="flex items-center border border-neutral-300 rounded-md">
+                  <button
+                    type="button"
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
+                    disabled={qty <= 1 || !product.in_stock}
+                    aria-label="Diminuer la quantité"
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-sm font-medium">{qty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQty((q) => q + 1)}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
+                    disabled={!product.in_stock}
+                    aria-label="Augmenter la quantité"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Add to cart */}
-            <button
-              type="button"
-              disabled={!product.in_stock}
-              onClick={() => {
-                addItem(product, qty, { openDrawer: openDrawerOnAdd });
-                onClose();
-              }}
-              className="mt-4 w-full px-6 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
-            >
-              {product.in_stock ? "Ajouter au panier" : "Indisponible"}
-            </button>
+              {/* Add to cart */}
+              <button
+                type="button"
+                disabled={!product.in_stock}
+                onClick={() => {
+                  addItem(product, qty, { openDrawer: openDrawerOnAdd });
+                  onClose();
+                }}
+                className="mt-4 w-full px-6 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
+              >
+                {product.in_stock ? "Ajouter au panier" : "Indisponible"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

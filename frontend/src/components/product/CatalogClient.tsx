@@ -8,6 +8,7 @@ import { CatalogSidebar } from "./CatalogSidebar";
 import { ProductGrid } from "./ProductGrid";
 import { Pagination } from "./Pagination";
 import { MobileFilterDrawer } from "./MobileFilterDrawer";
+import { SortSelect } from "./SortSelect";
 import {
   CatalogProvider,
   useCatalog,
@@ -89,7 +90,7 @@ function CatalogBody({
         </div>
       </div>
 
-      <div className="md:hidden mb-4">
+      <div className="md:hidden mb-4 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -103,11 +104,15 @@ function CatalogBody({
             </span>
           )}
         </button>
+        <SortSelect className="min-w-0" />
       </div>
 
       <div className="flex gap-6">
         <aside className="hidden md:block w-60 shrink-0">{sidebar}</aside>
         <div className="flex-1 min-w-0 w-full">
+          <div className="hidden md:flex items-center justify-end mb-3">
+            <SortSelect />
+          </div>
           <ProductGrid />
           {!cacheComplete && filteredProducts.length < filters.pageSize && (
             <p className="text-xs text-neutral-500 mt-4">
