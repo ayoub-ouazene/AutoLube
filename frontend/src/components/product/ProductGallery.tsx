@@ -5,9 +5,10 @@ import type { Product } from "@/lib/types";
 
 interface Props {
   product: Product;
+  compact?: boolean;
 }
 
-export function ProductGallery({ product }: Props) {
+export function ProductGallery({ product, compact = false }: Props) {
   const { image_front_url, image_back_url, name } = product;
 
   const images: Array<{ url: string | null; label: string }> = [
@@ -21,7 +22,11 @@ export function ProductGallery({ product }: Props) {
 
   if (available.length === 0) {
     return (
-      <div className="relative aspect-square w-full bg-neutral-100 flex items-center justify-center">
+      <div
+        className={`relative w-full bg-neutral-100 flex items-center justify-center ${
+          compact ? "aspect-[4/3]" : "aspect-square"
+        }`}
+      >
         <span className="text-neutral-400 text-sm">Image non disponible</span>
       </div>
     );
@@ -30,11 +35,15 @@ export function ProductGallery({ product }: Props) {
   return (
     <div className="flex flex-col gap-3">
       {/* Main image */}
-      <div className="relative aspect-square w-full bg-neutral-100 overflow-hidden">
+      <div
+        className={`relative w-full bg-neutral-100 overflow-hidden ${
+          compact ? "aspect-[4/3]" : "aspect-square"
+        }`}
+      >
         <img
           src={available[selected].url!}
           alt={`${name} - ${available[selected].label}`}
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${compact ? "object-contain" : "object-cover"}`}
         />
       </div>
 

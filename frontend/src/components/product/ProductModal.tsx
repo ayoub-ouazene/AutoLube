@@ -46,7 +46,7 @@ export function ProductModal({
       onClick={onClose}
     >
       <div
-        className="relative bg-white max-w-4xl w-full max-h-[92vh] rounded-md overflow-hidden"
+        className="relative bg-white max-w-4xl w-full max-h-[92vh] rounded-md overflow-y-auto md:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -62,7 +62,7 @@ export function ProductModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 p-4 md:p-5">
           {/* LEFT: gallery */}
           <div>
-            <ProductGallery product={product} />
+            <ProductGallery product={product} compact />
           </div>
 
           {/* RIGHT: info */}
@@ -97,7 +97,7 @@ export function ProductModal({
               <dd className="text-neutral-900">{product.specification || "—"}</dd>
             </dl>
 
-            <div className="mt-auto pt-6">
+            <div className="sticky bottom-0 mt-auto bg-brand-surface border-t border-brand-border p-3 md:static md:bg-transparent md:border-t-0 md:p-0 md:pt-6">
               {/* Quantity selector */}
               <div className="flex items-center gap-3">
                 <span className="text-sm text-neutral-700">Quantité</span>
