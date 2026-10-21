@@ -1,11 +1,11 @@
-# AutoLube Frontend — Project Context
+# LubriStock Frontend — Project Context
 
 This file is the pinned context for every prompt. Read it before doing anything.
 Do not modify it unless the human explicitly asks.
 
 ## What we are building
 
-AutoLube is a **retailer** of automotive oils and lubricants in Algeria.
+LubriStock is a **retailer** of automotive oils and lubricants in Algeria.
 The frontend is a customer-facing e-commerce site plus a small admin dasboard section.
 
 We are a retailer, not a manufacturer. We sell many brands (Castrol, Total,
@@ -68,64 +68,30 @@ There is no `quantity` field exposed to the customer. That is admin-only.
 
 ## Design system
 
-### Tone
+See DESIGN_SYSTEM.md for the full reference. Summary:
 
-Neutral, commercial, dense. A real shop's website, not a marketing landing page.
+- **Brand color**: orange `#FF5500` (hover `#E04B00`) — CTAs, active
+  states, badges. Use sparingly.
+- **Dark carbon**: `#121315` — headers, footers, hero backgrounds,
+  primary text.
+- **Page background**: `#F7F8FA`.
+- **Surfaces**: `#FFFFFF` — cards, modals, inputs.
+- **Borders**: `#E2E8F0`.
+- **Text**: `#121315` main, `#5A5E66` muted, `#FFFFFF` inverse.
+- **Typography**: system stack (no web fonts). Tailwind default sizes.
+- **`.heading-brand` utility**: italic + 800 + uppercase + tracking
+  -0.02em. Hero + logo-adjacent branding ONLY. Do NOT apply to all
+  h1/h2/h3 — reading becomes fatiguing.
+- **Radius**: Tailwind defaults (`rounded`, `rounded-md`, `rounded-lg`).
+- **Shadows**: `shadow-sm` cards, `shadow-xl` modals/drawers. Not every
+  element.
+- **Blur**: allowed on modal/drawer backdrops.
 
-### Color
+Brand name: **LubriStock** (exact spelling). Instagram: @lubristock.
 
-- Background: `white` (light mode only for now)
-- Primary text: `neutral-900`
-- Secondary text: `neutral-600`, `neutral-500`
-- Borders: `neutral-200` (1px solid)
-- Muted backgrounds: `neutral-50`, `neutral-100`
-- No accent color yet. When we add one, it will be used only on primary
-  buttons and important badges. Until then, buttons are `neutral-900` bg
-  with white text.
+Logo: `public/LubriStock.jpg`. Navbar uses it with `alt='LubriStock'`.
 
-### Typography
-
-- System stack via Tailwind defaults (Inter-like). No custom font files.
-- Hierarchy through size and weight, not color:
-  - Page titles: `text-2xl font-semibold`
-  - Section headings: `text-lg font-medium`
-  - Body: `text-sm` or `text-base`
-  - Small labels: `text-xs uppercase tracking-wide text-neutral-500`
-
-### Layout
-
-- Horizontal container: `max-w-7xl mx-auto px-4` (or `px-6` on wider screens)
-- Real content density — tight spacing, information-rich cards
-- Product grids: 2 cols mobile, 3–4 cols tablet, 4–5 cols desktop
-- Whitespace is used to separate sections, not to pad everything
-
-### Components
-
-- Product card: bordered box, image on top, brand + name + spec + price below,
-  small "Rupture" badge when `in_stock` is false
-- Buttons: rectangular, small radius (`rounded-md`), no shadows
-- Inputs: `border border-neutral-300 rounded-md`, focus ring in `neutral-900`
-- Badges: `text-xs px-2 py-0.5 border border-neutral-200 rounded`
-
-### Anti-generic rules (hard constraints)
-
-Do NOT produce any of the following:
-
-- Purple/blue/pink gradients anywhere, on any element
-- Glassmorphism (`backdrop-blur` on cards)
-- Large drop shadows (`shadow-2xl`, colored shadows)
-- Rounded-3xl corners on cards or containers
-- Decorative SVG blobs, floating orbs, glowing shapes
-- Full-viewport centered heroes with one headline and one button
-- Emoji used as icons or in headings
-- Placeholder copy like "Empower your journey", "Unlock efficiency"
-- Everything centered — use grids, sidebars, two-column layouts
-- Testimonial sections with circular avatars and star ratings
-- Scroll-triggered animations on every element
-- Any layout that could be swapped with a SaaS landing page without anyone noticing
-
-If you're unsure, favor a layout where **the products or the content are the
-visual interest**, not the design chrome around them.
+Never display the old name 'AutoLube' in customer-facing UI.
 
 ## File conventions
 
