@@ -3,13 +3,13 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="border-t border-neutral-200 bg-neutral-50 mt-12">
-      <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-x-10 text-sm">
         {/* Brand blurb */}
-        <div>
+        <div className="sm:col-span-2 md:col-span-1">
           <p className="font-bold uppercase tracking-widest text-neutral-900 mb-3">
             AutoLube
           </p>
-          <p className="text-neutral-600 leading-relaxed">
+          <p className="max-w-sm text-neutral-600 leading-relaxed">
             Votre fournisseur d&apos;huiles et lubrifiants automobiles en
             Algérie. Castrol, Total, Elf, Motul et bien d&apos;autres marques.
           </p>
@@ -49,29 +49,10 @@ export default function Footer() {
           <p className="text-xs uppercase tracking-wide text-neutral-500 mb-3">
             Contact
           </p>
-          <ul className="space-y-1.5 text-neutral-600">
-            <li>Tél : +213 XX XX XX XX</li>
+          <ul className="space-y-1.5 text-neutral-600 break-words">
+            <li className="whitespace-nowrap">Tél : +213 XX XX XX XX</li>
             <li>Alger, Algérie</li>
             <li>contact@autolube.dz</li>
-          </ul>
-        </div>
-
-        {/* About */}
-        <div>
-          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-3">
-            À propos
-          </p>
-          <ul className="space-y-1.5">
-            <li>
-              <Link href="/about" className="text-neutral-600 hover:text-neutral-900">
-                Qui sommes-nous
-              </Link>
-            </li>
-            <li>
-              <Link href="/contact" className="text-neutral-600 hover:text-neutral-900">
-                Nous contacter
-              </Link>
-            </li>
           </ul>
         </div>
       </div>

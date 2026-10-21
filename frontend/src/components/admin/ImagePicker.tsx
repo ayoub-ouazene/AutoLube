@@ -67,10 +67,10 @@ export function ImagePicker({
   };
 
   return (
-    <div className="border border-neutral-200 rounded-md p-4">
-      <h3 className="text-sm font-medium text-neutral-900 mb-3">{label}</h3>
-      <div className="flex items-start gap-4">
-        <div className="w-32 h-32 border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="border border-neutral-200 rounded-md p-3">
+      <h3 className="text-sm font-medium text-neutral-900 mb-2">{label}</h3>
+      <div className="flex items-start gap-3">
+        <div className="w-32 h-32 aspect-square border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

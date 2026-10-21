@@ -154,7 +154,7 @@ export default function EditStockPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="w-full max-w-none px-4 py-8 md:px-6 lg:px-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">
           Modifier le produit
@@ -167,7 +167,7 @@ export default function EditStockPage() {
           Supprimer le produit
         </button>
       </div>
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
         <StockForm
           mode="edit"
           initial={item}
@@ -176,7 +176,9 @@ export default function EditStockPage() {
           submitting={submitting}
           errorMessage={submitError}
         />
-        <ImageManager item={item} onUpdated={setItem} />
+        <div className="md:sticky md:top-6">
+          <ImageManager item={item} onUpdated={setItem} />
+        </div>
       </div>
     </div>
   );

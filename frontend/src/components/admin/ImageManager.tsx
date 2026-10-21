@@ -141,10 +141,10 @@ function ImageSection({
   const isBusy = uploading || deleting;
 
   return (
-    <div className="border border-neutral-200 rounded-md p-4">
-      <h3 className="text-sm font-medium text-neutral-900 mb-3">{label}</h3>
-      <div className="flex items-start gap-4">
-        <div className="w-32 h-32 border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="border border-neutral-200 rounded-md p-3">
+      <h3 className="text-sm font-medium text-neutral-900 mb-2">{label}</h3>
+      <div className="flex items-start gap-3">
+        <div className="w-32 h-32 aspect-square border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
           {displayUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -234,7 +234,7 @@ export function ImageManager({
 }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-md p-6">
-      <div className="mb-4">
+      <div className="mb-3">
         <h2 className="text-lg font-semibold text-neutral-900">
           Images du produit
         </h2>
@@ -243,7 +243,7 @@ export function ImageManager({
           ordinateur.
         </p>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <ImageSection
           position="front"
           label="Face avant"

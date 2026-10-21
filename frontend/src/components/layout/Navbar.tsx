@@ -11,14 +11,6 @@ export default function Navbar() {
       {/* Utility strip */}
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between py-1.5">
         <span className="text-xs text-neutral-500">Livraison en Algérie</span>
-        <div className="flex items-center gap-4">
-          <Link href="/contact" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
-            Contact
-          </Link>
-          <Link href="/about" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
-            À propos
-          </Link>
-        </div>
       </div>
 
       {/* Main navigation bar */}

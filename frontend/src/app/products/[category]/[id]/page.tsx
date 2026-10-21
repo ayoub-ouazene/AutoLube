@@ -79,27 +79,31 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Specs table */}
-          <div className="border border-neutral-200 divide-y divide-neutral-200 text-sm">
+          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white divide-y divide-neutral-200 text-sm">
             {product.specification && (
-              <div className="flex gap-4 px-4 py-2.5">
-                <span className="w-36 flex-shrink-0 text-neutral-500">Spécification</span>
-                <span className="text-neutral-900">{product.specification}</span>
+              <div className="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4 sm:py-2.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 sm:text-sm sm:font-normal sm:normal-case sm:tracking-normal">
+                  Spécification
+                </span>
+                <span className="min-w-0 break-words leading-relaxed text-neutral-900">
+                  {product.specification}
+                </span>
               </div>
             )}
             {product.viscosity && (
-              <div className="flex gap-4 px-4 py-2.5">
-                <span className="w-36 flex-shrink-0 text-neutral-500">Viscosité</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
+                <span className="text-neutral-500">Viscosité</span>
                 <span className="text-neutral-900">{product.viscosity}</span>
               </div>
             )}
             {product.size && (
-              <div className="flex gap-4 px-4 py-2.5">
-                <span className="w-36 flex-shrink-0 text-neutral-500">Contenance</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
+                <span className="text-neutral-500">Contenance</span>
                 <span className="text-neutral-900">{product.size}</span>
               </div>
             )}
-            <div className="flex gap-4 px-4 py-2.5">
-              <span className="w-36 flex-shrink-0 text-neutral-500">Marque</span>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
+              <span className="text-neutral-500">Marque</span>
               <span className="text-neutral-900">{product.brand}</span>
             </div>
           </div>

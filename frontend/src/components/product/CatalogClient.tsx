@@ -1,10 +1,13 @@
 "use client";
 
+import { useCallback, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { CatalogSidebar } from "./CatalogSidebar";
 import { ProductGrid } from "./ProductGrid";
 import { Pagination } from "./Pagination";
+import { MobileFilterDrawer } from "./MobileFilterDrawer";
 import {
   CatalogProvider,
   useCatalog,
@@ -54,6 +57,23 @@ function CatalogBody({
   maxPriceBound: number;
 }) {
   const { cacheComplete, filteredProducts, filters } = useCatalog();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  const activeFilterCount =
+    filters.categories.length +
+    filters.brands.length +
+    filters.sizes.length +
+    (filters.minPrice != null ? 1 : 0) +
+    (filters.maxPrice != null ? 1 : 0);
+
+  const sidebar = (
+    <CatalogSidebar
+      maxPrice={maxPriceBound}
+      brands={allBrands}
+      sizes={allSizes}
+    />
+  );
 
   return (
     <>
@@ -69,13 +89,25 @@ function CatalogBody({
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <CatalogSidebar
-          maxPrice={maxPriceBound}
-          brands={allBrands}
-          sizes={allSizes}
-        />
-        <div className="flex-1 w-full">
+      <div className="md:hidden mb-4">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="inline-flex items-center gap-2 text-sm border border-neutral-300 px-3 py-2 rounded hover:bg-neutral-100"
+        >
+          <SlidersHorizontal size={16} />
+          Filtres
+          {activeFilterCount > 0 && (
+            <span className="ml-1 bg-neutral-900 text-white text-xs px-1.5 py-0.5 rounded-full">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex gap-6">
+        <aside className="hidden md:block w-60 shrink-0">{sidebar}</aside>
+        <div className="flex-1 min-w-0 w-full">
           <ProductGrid />
           {!cacheComplete && filteredProducts.length < filters.pageSize && (
             <p className="text-xs text-neutral-500 mt-4">
@@ -85,6 +117,10 @@ function CatalogBody({
           <Pagination />
         </div>
       </div>
+
+      <MobileFilterDrawer open={drawerOpen} onClose={closeDrawer}>
+        {sidebar}
+      </MobileFilterDrawer>
     </>
   );
 }
