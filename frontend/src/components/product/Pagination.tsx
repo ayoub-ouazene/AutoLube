@@ -6,6 +6,11 @@ export function Pagination() {
   const { filters, pageCount, setFilters } = useCatalog();
   const page = Math.min(filters.page, pageCount);
 
+  const changePage = (nextPage: number) => {
+    setFilters({ page: nextPage });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (pageCount <= 1) return null;
 
   const isFirst = page <= 1;
@@ -14,7 +19,7 @@ export function Pagination() {
   return (
     <div className="flex items-center gap-3 mt-6">
       <button
-        onClick={() => setFilters({ page: page - 1 })}
+        onClick={() => changePage(page - 1)}
         disabled={isFirst}
         className="px-3 py-1.5 text-sm border border-brand-orange rounded-md bg-brand-orange text-white cursor-pointer hover:bg-brand-orange-hover hover:border-brand-orange-hover disabled:bg-brand-bg disabled:text-brand-text-muted disabled:border-brand-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
@@ -26,7 +31,7 @@ export function Pagination() {
       </span>
 
       <button
-        onClick={() => setFilters({ page: page + 1 })}
+        onClick={() => changePage(page + 1)}
         disabled={isLast}
         className="px-3 py-1.5 text-sm border border-brand-orange rounded-md bg-brand-orange text-white cursor-pointer hover:bg-brand-orange-hover hover:border-brand-orange-hover disabled:bg-brand-bg disabled:text-brand-text-muted disabled:border-brand-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
