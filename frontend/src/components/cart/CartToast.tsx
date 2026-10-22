@@ -19,7 +19,7 @@ export function CartToast() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[90] bg-neutral-900 text-white text-sm rounded-md shadow-lg px-4 py-3 flex items-center gap-3 max-w-[calc(100vw-2rem)] animate-[toastIn_200ms_ease-out]"
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[90] bg-brand-dark text-white text-sm rounded-md shadow-lg px-4 py-3 flex items-center gap-3 max-w-[calc(100vw-2rem)] animate-[toastIn_200ms_ease-out]"
     >
       <Check className="w-4 h-4 text-emerald-400 shrink-0" />
       <span className="truncate">
@@ -31,7 +31,7 @@ export function CartToast() {
           clearLastAdded();
           openCart();
         }}
-        className="text-xs underline underline-offset-2 whitespace-nowrap hover:text-neutral-300"
+        className="text-xs underline underline-offset-2 whitespace-nowrap hover:text-brand-orange"
       >
         Voir le panier
       </button>

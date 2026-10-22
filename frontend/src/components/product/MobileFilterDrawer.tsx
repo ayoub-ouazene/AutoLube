@@ -93,15 +93,15 @@ export function MobileFilterDrawer({
         aria-label="Filtres"
         inert={!open}
         className={
-          "fixed top-0 right-0 bottom-0 z-50 w-[85%] max-w-sm bg-white md:hidden " +
+          "fixed top-0 right-0 bottom-0 z-50 w-[85%] max-w-sm bg-brand-surface md:hidden " +
           "flex flex-col shadow-xl transition-transform duration-200 " +
           (open
             ? "translate-x-0 pointer-events-auto"
             : "translate-x-full pointer-events-none")
         }
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
-          <h2 className="text-base font-semibold text-neutral-900">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border">
+          <h2 className="text-base font-semibold text-brand-text">
             Filtres
           </h2>
           <button
@@ -109,7 +109,7 @@ export function MobileFilterDrawer({
             type="button"
             onClick={onClose}
             aria-label="Fermer les filtres"
-            className="p-1 hover:bg-neutral-100 rounded"
+            className="p-1 hover:bg-brand-bg rounded"
           >
             <X size={20} />
           </button>
@@ -117,11 +117,11 @@ export function MobileFilterDrawer({
 
         <div className="flex-1 overflow-y-auto p-4">{children}</div>
 
-        <div className="border-t border-neutral-200 p-3">
+        <div className="border-t border-brand-border p-3">
           <button
             type="button"
             onClick={onClose}
-            className="w-full bg-neutral-900 text-white text-sm font-medium py-2.5 rounded hover:bg-neutral-800"
+            className="w-full bg-brand-orange text-white text-sm font-medium py-2.5 rounded hover:bg-brand-orange-hover"
           >
             Voir {filteredProducts.length} résultat
             {filteredProducts.length === 1 ? "" : "s"}

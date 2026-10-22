@@ -80,8 +80,8 @@ function CatalogBody({
     <>
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Catalogue</h1>
-          <p className="text-sm text-neutral-500 mt-1">
+          <h1 className="text-2xl font-semibold text-brand-text">Catalogue</h1>
+          <p className="text-sm text-brand-text-muted mt-1">
             {filteredProducts.length} produit{filteredProducts.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -94,12 +94,12 @@ function CatalogBody({
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="inline-flex items-center gap-2 text-sm border border-neutral-300 px-3 py-2 rounded hover:bg-neutral-100"
+          className="inline-flex items-center gap-2 text-sm border border-brand-border px-3 py-2 rounded hover:bg-brand-bg"
         >
           <SlidersHorizontal size={16} />
           Filtres
           {activeFilterCount > 0 && (
-            <span className="ml-1 bg-neutral-900 text-white text-xs px-1.5 py-0.5 rounded-full">
+            <span className="ml-1 bg-brand-dark text-white text-xs px-1.5 py-0.5 rounded-full">
               {activeFilterCount}
             </span>
           )}
@@ -115,7 +115,7 @@ function CatalogBody({
           </div>
           <ProductGrid />
           {!cacheComplete && filteredProducts.length < filters.pageSize && (
-            <p className="text-xs text-neutral-500 mt-4">
+            <p className="text-xs text-brand-text-muted mt-4">
               Chargement du catalogue complet…
             </p>
           )}

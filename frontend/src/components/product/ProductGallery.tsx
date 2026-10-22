@@ -23,11 +23,11 @@ export function ProductGallery({ product, compact = false }: Props) {
   if (available.length === 0) {
     return (
       <div
-        className={`relative w-full bg-neutral-100 flex items-center justify-center ${
+        className={`relative w-full bg-brand-bg flex items-center justify-center ${
           compact ? "aspect-[4/3]" : "aspect-square"
         }`}
       >
-        <span className="text-neutral-400 text-sm">Image non disponible</span>
+        <span className="text-brand-text-muted text-sm">Image non disponible</span>
       </div>
     );
   }
@@ -36,7 +36,7 @@ export function ProductGallery({ product, compact = false }: Props) {
     <div className="flex flex-col gap-3">
       {/* Main image */}
       <div
-        className={`relative w-full bg-neutral-100 overflow-hidden ${
+        className={`relative w-full bg-brand-bg overflow-hidden ${
           compact ? "aspect-[4/3]" : "aspect-square"
         }`}
       >
@@ -56,7 +56,7 @@ export function ProductGallery({ product, compact = false }: Props) {
               type="button"
               onClick={() => setSelected(i)}
               className={`relative w-16 h-16 border-2 overflow-hidden ${
-                i === selected ? "border-neutral-900" : "border-neutral-200"
+                i === selected ? "border-brand-orange" : "border-brand-border"
               }`}
             >
               <img
@@ -76,7 +76,7 @@ export function ProductGallery({ product, compact = false }: Props) {
             <span
               key={i}
               className={`text-xs ${
-                i === selected ? "text-neutral-900 font-medium" : "text-neutral-400"
+                i === selected ? "text-brand-text font-medium" : "text-brand-text-muted"
               }`}
             >
               {img.label}

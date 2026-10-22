@@ -37,13 +37,13 @@ export default async function ProductDetailPage({ params }: Props) {
       {/* Back link */}
       <Link
         href="/products"
-        className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900 mb-6 transition-colors"
+        className="inline-flex items-center gap-1 text-sm text-brand-text-muted hover:text-brand-text mb-6 transition-colors"
       >
         ← Retour aux produits
       </Link>
 
       {/* Breadcrumb */}
-      <p className="text-xs text-neutral-400 uppercase tracking-wide mb-6">
+      <p className="text-xs text-brand-text-muted uppercase tracking-wide mb-6">
         {categoryLabels[product.category] ?? product.category} / {product.brand}
       </p>
 
@@ -58,17 +58,17 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="flex flex-col gap-5">
           {/* Brand + name */}
           <div className="flex flex-col gap-1">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">
+            <p className="text-xs uppercase tracking-wide text-brand-text-muted">
               {product.brand}
             </p>
-            <h1 className="text-2xl font-semibold text-neutral-900">
+            <h1 className="text-2xl font-semibold text-brand-text">
               {product.name}
             </h1>
           </div>
 
           {/* Price */}
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-neutral-900">
+            <span className="text-3xl font-bold text-brand-text">
               {formattedPrice}
             </span>
             {product.in_stock ? (
@@ -79,32 +79,32 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Specs table */}
-          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white divide-y divide-neutral-200 text-sm">
+          <div className="overflow-hidden rounded-lg border border-brand-border bg-brand-surface divide-y divide-brand-border text-sm">
             {product.specification && (
               <div className="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4 sm:py-2.5">
-                <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 sm:text-sm sm:font-normal sm:normal-case sm:tracking-normal">
+                <span className="text-xs font-medium uppercase tracking-wide text-brand-text-muted sm:text-sm sm:font-normal sm:normal-case sm:tracking-normal">
                   Spécification
                 </span>
-                <span className="min-w-0 break-words leading-relaxed text-neutral-900">
+                <span className="min-w-0 break-words leading-relaxed text-brand-text">
                   {product.specification}
                 </span>
               </div>
             )}
             {product.viscosity && (
               <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
-                <span className="text-neutral-500">Viscosité</span>
-                <span className="text-neutral-900">{product.viscosity}</span>
+                <span className="text-brand-text-muted">Viscosité</span>
+                <span className="text-brand-text">{product.viscosity}</span>
               </div>
             )}
             {product.size && (
               <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
-                <span className="text-neutral-500">Contenance</span>
-                <span className="text-neutral-900">{product.size}</span>
+                <span className="text-brand-text-muted">Contenance</span>
+                <span className="text-brand-text">{product.size}</span>
               </div>
             )}
             <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:py-2.5">
-              <span className="text-neutral-500">Marque</span>
-              <span className="text-neutral-900">{product.brand}</span>
+              <span className="text-brand-text-muted">Marque</span>
+              <span className="text-brand-text">{product.brand}</span>
             </div>
           </div>
 

@@ -46,7 +46,7 @@ export function ProductModal({
       onClick={onClose}
     >
       <div
-        className="relative bg-white max-w-4xl w-full max-h-[92vh] rounded-md overflow-y-auto md:overflow-hidden"
+        className="relative bg-brand-surface max-w-4xl w-full max-h-[92vh] rounded-md overflow-y-auto md:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -54,7 +54,7 @@ export function ProductModal({
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 z-10"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg z-10"
         >
           <X size={18} strokeWidth={2} />
         </button>
@@ -67,45 +67,45 @@ export function ProductModal({
 
           {/* RIGHT: info */}
           <div className="flex h-full flex-col">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">
+            <p className="text-xs uppercase tracking-wide text-brand-text-muted">
               {product.brand}
             </p>
-            <h2 className="text-xl font-semibold text-neutral-900 mt-1">
+            <h2 className="text-xl font-semibold text-brand-text mt-1">
               {product.name}
             </h2>
 
             {product.in_stock ? (
-              <span className="inline-block mt-3 text-xs px-2 py-0.5 border border-emerald-300 text-emerald-700 rounded">
+              <span className="inline-block self-start mt-3 text-xs px-2 py-0.5 border border-emerald-300 text-emerald-700 rounded">
                 Disponible
               </span>
             ) : (
-              <span className="inline-block mt-3 text-xs px-2 py-0.5 border border-neutral-300 text-neutral-500 rounded">
+              <span className="inline-block self-start mt-3 text-xs px-2 py-0.5 border border-brand-border text-brand-text-muted rounded">
                 Rupture de stock
               </span>
             )}
 
-            <p className="text-2xl font-semibold text-neutral-900 mt-3">
+            <p className="text-2xl font-semibold text-brand-text mt-3">
               {formatDA(product.price)}
             </p>
 
-            <dl className="mt-4 border-t border-neutral-200 pt-3 grid grid-cols-2 gap-y-2 text-sm">
-              <dt className="text-neutral-500">Viscosité</dt>
-              <dd className="text-neutral-900">{product.viscosity ?? "—"}</dd>
-              <dt className="text-neutral-500">Conditionnement</dt>
-              <dd className="text-neutral-900">{product.size ?? "—"}</dd>
-              <dt className="text-neutral-500">Spécification</dt>
-              <dd className="text-neutral-900">{product.specification || "—"}</dd>
+            <dl className="mt-4 border-t border-brand-border pt-3 grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-brand-text-muted">Viscosité</dt>
+              <dd className="text-brand-text">{product.viscosity ?? "—"}</dd>
+              <dt className="text-brand-text-muted">Conditionnement</dt>
+              <dd className="text-brand-text">{product.size ?? "—"}</dd>
+              <dt className="text-brand-text-muted">Spécification</dt>
+              <dd className="text-brand-text">{product.specification || "—"}</dd>
             </dl>
 
             <div className="sticky bottom-0 mt-auto bg-brand-surface border-t border-brand-border p-3 md:static md:bg-transparent md:border-t-0 md:p-0 md:pt-6">
               {/* Quantity selector */}
               <div className="flex items-center gap-3">
-                <span className="text-sm text-neutral-700">Quantité</span>
-                <div className="flex items-center border border-neutral-300 rounded-md">
+                <span className="text-sm text-brand-text">Quantité</span>
+                <div className="flex items-center border border-brand-border rounded-md">
                   <button
                     type="button"
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
+                    className="w-8 h-8 flex items-center justify-center hover:bg-brand-bg disabled:opacity-50"
                     disabled={qty <= 1 || !product.in_stock}
                     aria-label="Diminuer la quantité"
                   >
@@ -115,7 +115,7 @@ export function ProductModal({
                   <button
                     type="button"
                     onClick={() => setQty((q) => q + 1)}
-                    className="w-8 h-8 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-50"
+                    className="w-8 h-8 flex items-center justify-center hover:bg-brand-bg disabled:opacity-50"
                     disabled={!product.in_stock}
                     aria-label="Augmenter la quantité"
                   >
@@ -132,7 +132,7 @@ export function ProductModal({
                   addItem(product, qty, { openDrawer: openDrawerOnAdd });
                   onClose();
                 }}
-                className="mt-4 w-full px-6 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
+                className="mt-4 w-full px-6 py-2.5 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange-hover transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed"
               >
                 {product.in_stock ? "Ajouter au panier" : "Indisponible"}
               </button>

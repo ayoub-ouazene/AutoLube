@@ -41,19 +41,19 @@ export function CartDrawer() {
 
       {/* Panel */}
       <div
-        className="relative bg-white w-full max-w-md h-full flex flex-col shadow-xl"
+        className="relative bg-brand-surface w-full max-w-md h-full flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
-          <h2 className="text-base font-semibold text-neutral-900">
-            Panier {totalItems > 0 && <span className="text-neutral-500 font-normal">({totalItems})</span>}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-brand-border">
+          <h2 className="text-base font-semibold text-brand-text">
+            Panier {totalItems > 0 && <span className="text-brand-text-muted font-normal">({totalItems})</span>}
           </h2>
           <button
             type="button"
             onClick={closeCart}
             aria-label="Fermer"
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg"
           >
             <X className="w-4 h-4" />
           </button>
@@ -63,17 +63,17 @@ export function CartDrawer() {
         <div className="flex-1 overflow-y-auto">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-              <p className="text-sm text-neutral-500">Votre panier est vide.</p>
+              <p className="text-sm text-brand-text-muted">Votre panier est vide.</p>
               <Link
                 href="/products"
                 onClick={closeCart}
-                className="mt-4 text-sm text-neutral-900 underline underline-offset-4"
+                className="mt-4 text-sm text-brand-text underline underline-offset-4"
               >
                 Parcourir le catalogue
               </Link>
             </div>
           ) : (
-            <ul className="divide-y divide-neutral-200">
+            <ul className="divide-y divide-brand-border">
               {items.map((it) => (
                 <CartItemRow key={`${it.category}-${it.id}`} item={it} />
               ))}
@@ -83,24 +83,24 @@ export function CartDrawer() {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="border-t border-neutral-200 px-4 py-4">
+          <div className="border-t border-brand-border px-4 py-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-neutral-500">Sous-total</span>
-              <span className="text-lg font-semibold text-neutral-900">
+              <span className="text-sm text-brand-text-muted">Sous-total</span>
+              <span className="text-lg font-semibold text-brand-text">
                 {formatDA(totalPrice)}
               </span>
             </div>
             <Link
               href="/checkout"
               onClick={closeCart}
-              className="block w-full text-center px-6 py-3 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-colors"
+              className="block w-full text-center px-6 py-3 bg-brand-orange text-white text-sm font-medium rounded-md hover:bg-brand-orange-hover transition-colors"
             >
               Passer la commande
             </Link>
             <button
               type="button"
               onClick={closeCart}
-              className="block w-full text-center mt-2 px-6 py-2 text-sm text-neutral-600 hover:text-neutral-900"
+              className="block w-full text-center mt-2 px-6 py-2 text-sm text-brand-text-muted hover:text-brand-text"
             >
               Continuer mes achats
             </button>

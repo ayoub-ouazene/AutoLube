@@ -31,13 +31,13 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <div
-      className="group border border-neutral-200 bg-white relative cursor-pointer"
+      className="group border border-brand-border bg-brand-surface relative cursor-pointer"
       onClick={() => setOpen(true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image area */}
-      <div className="relative aspect-square w-full bg-neutral-100 overflow-hidden">
+      <div className="relative aspect-square w-full bg-brand-bg overflow-hidden">
         {hasFront || hasBack ? (
           <img
             src={showBack ? image_back_url! : image_front_url!}
@@ -52,7 +52,7 @@ export default function ProductCard({ product }: Props) {
 
         {/* Out-of-stock badge */}
         {!in_stock && (
-          <span className="absolute top-2 right-2 text-xs px-2 py-0.5 bg-white border border-neutral-200 rounded text-neutral-600">
+          <span className="absolute top-2 right-2 text-xs px-2 py-0.5 bg-brand-surface border border-neutral-200 rounded text-brand-text-muted">
             Rupture
           </span>
         )}
@@ -65,7 +65,7 @@ export default function ProductCard({ product }: Props) {
             e.stopPropagation();
             setOpen(true);
           }}
-          className="absolute bottom-2 left-2 right-2 bg-neutral-900 text-white text-xs font-medium py-1.5 rounded-md opacity-0 md:group-hover:opacity-100 transition-opacity disabled:bg-neutral-300 disabled:cursor-not-allowed"
+          className="absolute bottom-2 left-2 right-2 bg-brand-orange text-white text-xs font-medium py-1.5 rounded-md opacity-0 md:group-hover:opacity-100 transition-opacity disabled:bg-neutral-300 disabled:cursor-not-allowed"
         >
           {in_stock ? "Plus de détails" : "Indisponible"}
         </button>
@@ -73,16 +73,16 @@ export default function ProductCard({ product }: Props) {
 
       {/* Card body */}
       <div className="p-2.5 flex flex-col gap-0.5">
-        <p className="text-xs uppercase tracking-wide text-neutral-500">
+        <p className="text-xs uppercase tracking-wide text-brand-text-muted">
           {brand}
         </p>
-        <p className="text-sm font-medium text-neutral-900 line-clamp-1">
+        <p className="text-sm font-medium text-brand-text line-clamp-1">
           {name}
         </p>
-        <p className="text-xs text-neutral-500 line-clamp-1">
+        <p className="text-xs text-brand-text-muted line-clamp-1">
           {specification}
         </p>
-        <p className="mt-1 text-base font-semibold text-neutral-900">
+        <p className="mt-1 text-base font-semibold text-brand-text">
           {formattedPrice}
         </p>
       </div>

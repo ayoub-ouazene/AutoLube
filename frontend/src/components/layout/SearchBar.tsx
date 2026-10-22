@@ -32,13 +32,13 @@ export function SearchBar() {
 
   return (
     <div className="relative">
-      <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <Search className="w-4 h-4 text-brand-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
       <input
         type="search"
         placeholder="Rechercher un produit, une marque, une spécification…"
         value={value}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full border border-neutral-300 rounded-md pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-neutral-900"
+        className="w-full border border-brand-border rounded-md pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-brand-dark"
       />
     </div>
   );

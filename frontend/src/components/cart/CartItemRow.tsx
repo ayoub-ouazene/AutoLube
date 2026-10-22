@@ -14,29 +14,29 @@ export function CartItemRow({ item }: { item: CartItem }) {
   return (
     <li className="flex gap-3 px-4 py-3">
       {/* Image */}
-      <div className="w-16 h-16 bg-neutral-100 flex-shrink-0 relative border border-neutral-200">
+      <div className="w-16 h-16 bg-brand-bg flex-shrink-0 relative border border-brand-border">
         {item.image_front_url ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote URLs, next.config.ts can't be changed
           <img src={item.image_front_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-400">—</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] text-brand-text-muted">—</span>
         )}
       </div>
 
       {/* Info + controls */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs uppercase tracking-wide text-neutral-500">{item.brand}</p>
-        <p className="text-sm text-neutral-900 truncate">{item.name}</p>
-        {item.size && <p className="text-xs text-neutral-500 mt-0.5">{item.size}</p>}
-        <p className="text-sm font-medium text-neutral-900 mt-1">{formatDA(item.price)}</p>
+        <p className="text-xs uppercase tracking-wide text-brand-text-muted">{item.brand}</p>
+        <p className="text-sm text-brand-text truncate">{item.name}</p>
+        {item.size && <p className="text-xs text-brand-text-muted mt-0.5">{item.size}</p>}
+        <p className="text-sm font-medium text-brand-text mt-1">{formatDA(item.price)}</p>
 
         <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center border border-neutral-300 rounded-md">
+          <div className="flex items-center border border-brand-border rounded-md">
             <button
               type="button"
               onClick={() => updateQty(item.category, item.id, item.quantity - 1)}
               disabled={item.quantity <= 1}
-              className="w-7 h-7 flex items-center justify-center hover:bg-neutral-100 disabled:opacity-40"
+              className="w-7 h-7 flex items-center justify-center hover:bg-brand-bg disabled:opacity-40"
               aria-label="Diminuer"
             >
               −
@@ -45,7 +45,7 @@ export function CartItemRow({ item }: { item: CartItem }) {
             <button
               type="button"
               onClick={() => updateQty(item.category, item.id, item.quantity + 1)}
-              className="w-7 h-7 flex items-center justify-center hover:bg-neutral-100"
+              className="w-7 h-7 flex items-center justify-center hover:bg-brand-bg"
               aria-label="Augmenter"
             >
               +
@@ -56,7 +56,7 @@ export function CartItemRow({ item }: { item: CartItem }) {
             type="button"
             onClick={() => removeItem(item.category, item.id)}
             aria-label="Retirer"
-            className="text-neutral-400 hover:text-red-600"
+            className="text-brand-text-muted hover:text-red-600"
           >
             <Trash2 className="w-4 h-4" />
           </button>

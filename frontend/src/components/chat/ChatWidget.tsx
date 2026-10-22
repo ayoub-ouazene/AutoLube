@@ -53,7 +53,7 @@ export function ChatWidget() {
         type="button"
         onClick={isOpen ? close : open}
         aria-label={isOpen ? "Fermer le chat" : "Ouvrir le chat"}
-        className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-neutral-900 text-white shadow-lg hover:bg-neutral-800 flex items-center justify-center transition-colors"
+        className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-orange text-white shadow-lg hover:bg-brand-orange-hover flex items-center justify-center transition-colors"
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
       </button>
@@ -65,23 +65,23 @@ export function ChatWidget() {
           onClick={close}
         >
           <div
-            className="relative bg-white border border-neutral-200 rounded-lg shadow-xl w-full max-w-3xl h-[85vh] max-h-[720px] flex flex-col"
+            className="relative bg-brand-surface border border-brand-border rounded-lg shadow-xl w-full max-w-3xl h-[85vh] max-h-[720px] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
           {/* Header */}
-          <div className="border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
+          <div className="border-b border-brand-border px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-900">
+              <p className="text-sm font-medium text-brand-text">
                 Assistant AutoLube
               </p>
-              <p className="text-xs text-neutral-500">Posez votre question</p>
+              <p className="text-xs text-brand-text-muted">Posez votre question</p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={reset}
                 aria-label="Nouvelle conversation"
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg text-brand-text-muted"
               >
                 <RotateCcw size={16} />
               </button>
@@ -89,7 +89,7 @@ export function ChatWidget() {
                 type="button"
                 onClick={close}
                 aria-label="Fermer"
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg text-brand-text-muted"
               >
                 <X size={16} />
               </button>
@@ -100,7 +100,7 @@ export function ChatWidget() {
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-                <p className="text-sm text-neutral-600">
+                <p className="text-sm text-brand-text-muted">
                   Bonjour. Posez-moi une question sur votre véhicule, je vous recommande les huiles adaptées.
                 </p>
                 <div className="flex flex-col gap-2 w-full">
@@ -109,7 +109,7 @@ export function ChatWidget() {
                       key={ex}
                       type="button"
                       onClick={() => send(ex)}
-                      className="w-full text-left text-xs text-neutral-700 border border-neutral-200 rounded-md px-3 py-2 hover:bg-neutral-50 transition-colors"
+                      className="w-full text-left text-xs text-brand-text border border-brand-border rounded-md px-3 py-2 hover:bg-brand-bg transition-colors"
                     >
                       {ex}
                     </button>
@@ -122,7 +122,7 @@ export function ChatWidget() {
                   <ChatMessageBubble key={m.id} message={m} />
                 ))}
                 {isSending && (
-                  <p className="text-xs text-neutral-400 animate-pulse">
+                  <p className="text-xs text-brand-text-muted animate-pulse">
                     L&apos;assistant écrit…
                   </p>
                 )}
@@ -147,7 +147,7 @@ export function ChatWidget() {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-neutral-200 p-3 flex gap-2 items-end">
+          <div className="border-t border-brand-border p-3 flex gap-2 items-end">
             <div className="flex-1 flex flex-col gap-1">
               <textarea
                 rows={1}
@@ -157,13 +157,13 @@ export function ChatWidget() {
                 maxLength={2000}
                 disabled={isSending || sessionExpired}
                 placeholder="Écrivez votre message…"
-                className="w-full resize-none border border-neutral-300 rounded-md px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none focus:ring-0 disabled:opacity-50"
+                className="w-full resize-none border border-brand-border rounded-md px-3 py-2 text-sm focus:border-brand-dark focus:outline-none focus:ring-0 disabled:opacity-50"
               />
               {input.length > 1800 && (
                 <span
                   className={
                     "text-[10px] " +
-                    (input.length >= 2000 ? "text-red-600" : "text-neutral-500")
+                    (input.length >= 2000 ? "text-red-600" : "text-brand-text-muted")
                   }
                   aria-live="polite"
                 >
@@ -176,7 +176,7 @@ export function ChatWidget() {
               onClick={handleSend}
               disabled={!input.trim() || isSending || sessionExpired}
               aria-label="Envoyer"
-              className="w-10 h-10 bg-neutral-900 text-white rounded-md flex items-center justify-center disabled:bg-neutral-300 disabled:cursor-not-allowed shrink-0"
+              className="w-10 h-10 bg-brand-orange text-white rounded-md flex items-center justify-center disabled:bg-neutral-300 disabled:cursor-not-allowed shrink-0"
             >
               <Send size={16} />
             </button>

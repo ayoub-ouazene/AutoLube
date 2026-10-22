@@ -19,8 +19,8 @@ export function SortSelect({ className = "" }: { className?: string }) {
       }
       aria-label="Trier les produits"
       className={
-        "border border-neutral-300 rounded px-3 py-1.5 text-sm " +
-        "focus:outline-none focus:border-neutral-900 bg-white " +
+        "border border-brand-border rounded px-3 py-1.5 text-sm " +
+        "focus:outline-none focus:border-brand-dark bg-brand-surface " +
         className
       }
     >

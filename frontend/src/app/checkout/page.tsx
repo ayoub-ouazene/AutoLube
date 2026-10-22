@@ -11,7 +11,7 @@ import { WILAYAS } from "@/lib/wilayas";
 const PHONE_RE = /^(0|\+213)(5|6|7)[0-9]{8}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INPUT_CLASS =
-  "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none focus:ring-0";
+  "w-full border border-brand-border rounded-md px-3 py-2 text-sm focus:border-brand-dark focus:outline-none focus:ring-0";
 
 type FormState = {
   full_name: string;
@@ -122,10 +122,10 @@ export default function CheckoutPage() {
           <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-4">
             <Check className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-semibold text-neutral-900">
+          <h1 className="text-2xl font-semibold text-brand-text">
             Commande enregistrée
           </h1>
-          <p className="text-sm text-neutral-600 mt-2">
+          <p className="text-sm text-brand-text-muted mt-2">
             Votre commande <strong>#{state.data.order_id}</strong> a été enregistrée pour un total de{" "}
             <strong>{state.data.total.toLocaleString("fr-DZ")} DA</strong>.
           </p>
@@ -158,14 +158,14 @@ export default function CheckoutPage() {
             {whatsappOpened && (
               <Link
                 href="/"
-                className="inline-block px-6 py-3 border border-neutral-300 text-sm font-medium text-neutral-900 rounded-md hover:bg-neutral-100 transition-colors"
+                className="inline-block px-6 py-3 border border-brand-border text-sm font-medium text-brand-text rounded-md hover:bg-brand-bg transition-colors"
               >
                 J&apos;ai confirmé — Retour à l&apos;accueil
               </Link>
             )}
           </div>
 
-          <p className="text-xs text-neutral-500 mt-3 text-center">
+          <p className="text-xs text-brand-text-muted mt-3 text-center">
             Un message pré-rempli s&apos;ouvrira dans WhatsApp avec les détails de votre commande.
             Envoyez-le tel quel pour valider.
           </p>
@@ -177,10 +177,10 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <main className="max-w-2xl mx-auto px-4 md:px-6 py-12 text-center">
-        <p className="text-sm text-neutral-600">Votre panier est vide.</p>
+        <p className="text-sm text-brand-text-muted">Votre panier est vide.</p>
         <Link
           href="/products"
-          className="mt-4 inline-block text-sm text-neutral-900 underline underline-offset-4"
+          className="mt-4 inline-block text-sm text-brand-text underline underline-offset-4"
         >
           Parcourir le catalogue
         </Link>
@@ -192,7 +192,7 @@ export default function CheckoutPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-      <h1 className="text-2xl font-semibold text-neutral-900 mb-6">Passer la commande</h1>
+      <h1 className="text-2xl font-semibold text-brand-text mb-6">Passer la commande</h1>
       <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-8">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <Field label="Nom complet" htmlFor="full_name" error={shown.full_name}>
@@ -275,7 +275,7 @@ export default function CheckoutPage() {
               onChange={(e) => setField("notes", e.target.value)}
               className={INPUT_CLASS}
             />
-            <p className="text-xs text-neutral-500 text-right">{form.notes.length}/500</p>
+            <p className="text-xs text-brand-text-muted text-right">{form.notes.length}/500</p>
           </Field>
 
           {state.status === "error" && (
@@ -287,18 +287,18 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-neutral-900 text-white py-3 rounded-md text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed"
+            className="w-full bg-brand-orange text-white py-3 rounded-md text-sm font-medium hover:bg-brand-orange-hover disabled:bg-neutral-300 disabled:cursor-not-allowed"
           >
             {submitting ? "Envoi en cours…" : "Confirmer la commande"}
           </button>
         </form>
 
-        <aside className="md:sticky md:top-6 h-fit border border-neutral-200 p-4">
-          <h2 className="text-sm font-medium text-neutral-900 mb-3">Récapitulatif</h2>
+        <aside className="md:sticky md:top-6 h-fit border border-brand-border p-4">
+          <h2 className="text-sm font-medium text-brand-text mb-3">Récapitulatif</h2>
           <ul className="flex flex-col gap-3">
             {items.map((it) => (
               <li key={`${it.category}-${it.id}`} className="flex gap-3">
-                <div className="w-12 h-12 bg-neutral-100 border border-neutral-200 relative shrink-0">
+                <div className="w-12 h-12 bg-brand-bg border border-brand-border relative shrink-0">
                   {it.image_front_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- remote URLs, next.config.ts can't be changed
                     <img
@@ -307,26 +307,26 @@ export default function CheckoutPage() {
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-400">—</span>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] text-brand-text-muted">—</span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-neutral-900 truncate">{it.name}</p>
-                  <p className="text-xs text-neutral-500">Qté {it.quantity}</p>
+                  <p className="text-sm text-brand-text truncate">{it.name}</p>
+                  <p className="text-xs text-brand-text-muted">Qté {it.quantity}</p>
                 </div>
-                <p className="text-sm text-neutral-900 shrink-0">
+                <p className="text-sm text-brand-text shrink-0">
                   {formatDA(it.price * it.quantity)}
                 </p>
               </li>
             ))}
           </ul>
-          <div className="mt-4 pt-3 border-t border-neutral-200 flex items-center justify-between text-sm">
-            <span className="text-neutral-500">Sous-total</span>
-            <span className="text-neutral-900">{formatDA(totalPrice)}</span>
+          <div className="mt-4 pt-3 border-t border-brand-border flex items-center justify-between text-sm">
+            <span className="text-brand-text-muted">Sous-total</span>
+            <span className="text-brand-text">{formatDA(totalPrice)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-base font-semibold text-neutral-900">Total</span>
-            <span className="text-lg font-semibold text-neutral-900">{formatDA(totalPrice)}</span>
+            <span className="text-base font-semibold text-brand-text">Total</span>
+            <span className="text-lg font-semibold text-brand-text">{formatDA(totalPrice)}</span>
           </div>
         </aside>
       </div>
@@ -349,9 +349,9 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="text-sm text-neutral-700">
+      <label htmlFor={htmlFor} className="text-sm text-brand-text">
         {label}
-        {optional && <span className="text-neutral-400"> (optionnel)</span>}
+        {optional && <span className="text-brand-text-muted"> (optionnel)</span>}
       </label>
       {children}
       {error && <p className="text-xs text-red-600">{error}</p>}

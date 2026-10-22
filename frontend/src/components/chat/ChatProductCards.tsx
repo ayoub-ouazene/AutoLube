@@ -20,9 +20,9 @@ export function ChatProductCards({ products }: { products: ChatProduct[] }) {
             key={`${p.category}-${p.id}`}
             type="button"
             onClick={() => setSelected(p)}
-            className="w-40 shrink-0 border border-neutral-200 bg-white rounded-md overflow-hidden cursor-pointer text-left"
+            className="w-40 shrink-0 border border-brand-border bg-brand-surface rounded-md overflow-hidden cursor-pointer text-left"
           >
-            <div className="h-24 relative bg-neutral-100">
+            <div className="h-24 relative bg-brand-bg">
               {p.image_front_url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- remote URLs, next.config.ts can't be changed
                 <img
@@ -31,21 +31,21 @@ export function ChatProductCards({ products }: { products: ChatProduct[] }) {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
-                <span className="absolute inset-0 flex items-center justify-center text-neutral-400">
+                <span className="absolute inset-0 flex items-center justify-center text-brand-text-muted">
                   —
                 </span>
               )}
             </div>
             <div className="p-2">
-              <p className="text-[10px] uppercase tracking-wide text-neutral-500">
+              <p className="text-[10px] uppercase tracking-wide text-brand-text-muted">
                 {p.brand}
               </p>
-              <p className="text-xs text-neutral-900 truncate">{p.name}</p>
-              <p className="text-sm font-medium text-neutral-900 mt-1">
+              <p className="text-xs text-brand-text truncate">{p.name}</p>
+              <p className="text-sm font-medium text-brand-text mt-1">
                 {formatDA(p.price)}
               </p>
               <div className="mt-1 flex justify-end">
-                <span className="text-[10px] text-neutral-500 underline underline-offset-2">
+                <span className="text-[10px] text-brand-text-muted underline underline-offset-2">
                   Plus de détails
                 </span>
               </div>

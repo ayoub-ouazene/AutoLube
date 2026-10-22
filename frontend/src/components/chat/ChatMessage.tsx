@@ -13,8 +13,8 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`${
           isUser
-            ? "bg-neutral-900 text-white self-end"
-            : "bg-neutral-100 text-neutral-900 self-start"
+            ? "bg-brand-dark text-white self-end"
+            : "bg-brand-bg text-brand-text self-start"
         } rounded-lg px-3 py-2 max-w-[85%] text-sm`}
       >
         {isUser ? (
@@ -22,7 +22,7 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }) {
         ) : (
           <div className="chat-md">
             {!message.text && (!message.products || message.products.length === 0) ? (
-              <p className="text-neutral-600 text-sm italic">
+              <p className="text-brand-text-muted text-sm italic">
                 Je n&apos;ai pas de réponse à vous proposer pour le moment.
               </p>
             ) : (
