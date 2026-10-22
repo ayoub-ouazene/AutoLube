@@ -1,55 +1,157 @@
+/* eslint-disable @next/next/no-img-element -- public brand asset */
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight, Camera, Droplets, Filter, Mail, MapPin, Package,
+  Phone, ShieldCheck, Truck, Wallet, Wrench,
+} from "lucide-react";
+import { getProducts } from "@/lib/api";
+import ProductCard from "@/components/product/ProductCard";
+import { OpenChatButton } from "@/components/home/OpenChatButton";
 
-const categoryCards = [
-  {
-    title: "Huile moteur",
-    description: "Huiles moteur toutes viscosités pour voitures et utilitaires.",
-    href: "/products?category=engine_oil",
-  },
-  {
-    title: "Huile de boîte",
-    description: "Huiles de transmission, boîte manuelle et automatique.",
-    href: "/products?category=gearbox_oil",
-  },
-  {
-    title: "Filtres à huile",
-    description: "Filtres compatibles avec les grandes marques du marché.",
-    href: "/products?category=oil_filter",
-  },
-];
+const categories = [
+  { id: "engine_oil", title: "Huile moteur", description: "Pour l’entretien de votre moteur", icon: Droplets, number: "01" },
+  { id: "gearbox_oil", title: "Huile de boîte", description: "Pour vos transmissions", icon: Wrench, number: "02" },
+  { id: "oil_filter", title: "Filtre à huile", description: "Pour une filtration efficace", icon: Filter, number: "03" },
+  { id: "additional", title: "Produits additionnels", description: "Pour compléter votre entretien", icon: Package, number: "04" },
+] as const;
+
+async function FeaturedProducts() {
+  let items;
+  try {
+    const data = await getProducts({ page: 1, page_size: 8, sort: "random" });
+    items = data.items;
+  } catch {
+    return null;
+  }
+  if (!items.length) return null;
+
+  return (
+    <section className="border-t border-brand-border bg-brand-surface py-12 sm:py-16" aria-labelledby="featured-title">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-brand-border pb-5">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-orange">En rayon</p>
+            <h2 id="featured-title" className="text-2xl font-semibold tracking-tight text-brand-text sm:text-3xl">Une sélection du catalogue</h2>
+          </div>
+          <Link href="/products" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-text hover:text-brand-orange">
+            Tous les produits <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {items.map((product) => (
+            <ProductCard key={`${product.category}-${product.id}`} product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function HomePage() {
   return (
-    <main className="max-w-7xl mx-auto px-4 py-10">
-      {/* À propos section */}
-      <section className="mb-10 border-b border-neutral-200 pb-8">
-        <h2 className="text-lg font-medium text-neutral-900 mb-3">À propos d&apos;AutoLube</h2>
-        <p className="text-sm text-neutral-600 max-w-2xl leading-relaxed">
-          AutoLube est un distributeur algérien spécialisé dans la vente d&apos;huiles moteur,
-          huiles de transmission et lubrifiants automobiles. Nous proposons un large choix
-          de marques reconnues — Castrol, Total, Elf, Motul, Febi — pour les particuliers
-          et les professionnels à travers l&apos;Algérie.
-        </p>
+    <main>
+      <section className="relative overflow-hidden bg-brand-dark text-white" aria-labelledby="hero-title">
+        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0px,transparent_54px,rgba(255,255,255,0.025)_55px,rgba(255,255,255,0.025)_56px)]" aria-hidden="true" />
+        <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)] md:items-center md:gap-12 md:px-6 lg:py-20">
+          <div>
+            <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/65">
+              <span className="h-px w-7 bg-brand-orange" aria-hidden="true" />Lubrifiants automobiles · Algérie
+            </p>
+            <h1 id="hero-title" className="heading-brand max-w-2xl text-[clamp(2.4rem,5.5vw,4.6rem)] leading-[1.02] text-white">
+              L’entretien commence avec le bon produit.
+            </h1>
+            <p className="mt-6 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
+              Huiles moteur, huiles de boîte et filtres pour votre véhicule. Retrouvez Castrol, Total, Elf, Motul, Febi et d’autres références dans un catalogue pensé pour choisir sans perdre de temps.
+            </p>
+            <Link href="/products" className="mt-8 inline-flex items-center justify-center gap-3 rounded bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-orange-hover">
+              Explorer le catalogue <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="relative flex min-h-48 items-center justify-center border border-white/15 bg-brand-dark-light p-8 sm:min-h-64 md:min-h-72 lg:min-h-80">
+            <span className="absolute left-4 top-4 text-[10px] font-medium tracking-[0.2em] text-white/45">LUBRISTOCK / 01</span>
+            <img src="/LubriStock.png" alt="LubriStock" className="relative max-h-56 w-full max-w-sm object-contain drop-shadow-xl md:max-h-64" />
+            <span className="absolute bottom-4 right-4 h-1 w-12 bg-brand-orange" aria-hidden="true" />
+          </div>
+        </div>
       </section>
 
-      {/* Catégories section */}
-      <section>
-        <h2 className="text-lg font-medium text-neutral-900 mb-4">Catégories</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {categoryCards.map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className="flex items-start justify-between border border-neutral-200 rounded-md p-4 hover:bg-neutral-50 transition-colors"
-            >
-              <div>
-                <p className="text-sm font-medium text-neutral-900 mb-1">{card.title}</p>
-                <p className="text-xs text-neutral-500 leading-relaxed">{card.description}</p>
+      <section className="border-b border-brand-border bg-brand-surface" aria-label="Nos engagements">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-brand-border px-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 md:px-6">
+          {[
+            { icon: ShieldCheck, title: "Marques reconnues", description: "Des références pour votre entretien" },
+            { icon: Truck, title: "58 wilayas", description: "Livraison dans toute l’Algérie" },
+            { icon: Wallet, title: "Paiement à la livraison", description: "Commandez en toute simplicité" },
+          ].map(({ icon: Icon, title, description }) => (
+            <div key={title} className="flex items-center gap-3 py-4 sm:px-5 sm:first:pl-0 sm:last:pr-0">
+              <Icon size={21} className="shrink-0 text-brand-text" strokeWidth={1.75} aria-hidden="true" />
+              <div><p className="text-sm font-semibold text-brand-text">{title}</p><p className="text-xs text-brand-text-muted">{description}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:px-6" aria-labelledby="categories-title">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-text-muted">Le catalogue</p>
+            <h2 id="categories-title" className="text-2xl font-semibold tracking-tight text-brand-text sm:text-3xl">Choisissez votre catégorie</h2>
+          </div>
+          <p className="max-w-xs text-sm text-brand-text-muted">Accédez directement aux produits dont vous avez besoin.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-px overflow-hidden border border-brand-border bg-brand-border sm:grid-cols-2 lg:grid-cols-4">
+          {categories.map(({ id, title, description, icon: Icon, number }) => (
+            <Link key={id} href={`/products?category=${id}`} className="group flex min-h-44 flex-col justify-between bg-brand-surface p-5 transition-colors hover:bg-brand-bg">
+              <div className="flex items-start justify-between">
+                <Icon size={24} strokeWidth={1.6} className="text-brand-text" aria-hidden="true" />
+                <span className="text-xs tabular-nums text-brand-text-muted">{number} / 04</span>
               </div>
-              <ArrowRight size={16} className="text-neutral-400 shrink-0 mt-0.5 ml-3" />
+              <div className="mt-7">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-base font-semibold text-brand-text">{title}</h3>
+                  <ArrowRight size={17} className="shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-orange" aria-hidden="true" />
+                </div>
+                <p className="mt-1 text-xs text-brand-text-muted">{description}</p>
+              </div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      <FeaturedProducts />
+
+      <section className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[1fr_1.1fr] md:gap-16 md:px-6" aria-labelledby="about-title">
+        <div className="border-l-2 border-brand-orange pl-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-text-muted">Notre métier</p>
+          <h2 id="about-title" className="max-w-sm text-2xl font-semibold leading-tight text-brand-text sm:text-3xl">Votre entretien automobile, sans détour.</h2>
+        </div>
+        <div className="max-w-2xl space-y-4 text-sm leading-relaxed text-brand-text-muted sm:text-base">
+          <p>LubriStock est un détaillant algérien spécialisé dans les huiles et lubrifiants automobiles. Nous réunissons huiles moteur, huiles de boîte, filtres et produits additionnels dans un seul catalogue.</p>
+          <p>Notre sélection comprend des marques reconnues comme Castrol, Total, Elf, Motul et Febi. Particulier ou professionnel, parcourez les références et contactez-nous si vous avez besoin d’un conseil avant de commander.</p>
+        </div>
+      </section>
+
+      <section className="border-t border-brand-border bg-brand-surface" aria-labelledby="contact-title">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[0.8fr_1.2fr] md:items-start md:gap-16 md:px-6">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-text-muted">Une question ?</p>
+            <h2 id="contact-title" className="text-2xl font-semibold tracking-tight text-brand-text sm:text-3xl">Parlons de votre véhicule.</h2>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-brand-text-muted">Un doute sur un produit ou une référence ? Écrivez-nous ou échangez directement avec notre assistant.</p>
+            <OpenChatButton className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-text underline decoration-brand-orange decoration-2 underline-offset-4 hover:text-brand-orange" />
+          </div>
+          <address className="grid grid-cols-1 gap-px overflow-hidden border border-brand-border bg-brand-border not-italic sm:grid-cols-2">
+            <a href="tel:+213555000000" className="flex items-start gap-3 bg-brand-surface p-4 text-sm text-brand-text hover:text-brand-orange">
+              <Phone size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><span><span className="block text-xs text-brand-text-muted">Téléphone</span>+213 5XX XX XX XX</span>
+            </a>
+            <a href="mailto:contact@lubristock.dz" className="flex min-w-0 items-start gap-3 bg-brand-surface p-4 text-sm text-brand-text hover:text-brand-orange">
+              <Mail size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><span className="min-w-0 break-all"><span className="block text-xs text-brand-text-muted">E-mail</span>contact@lubristock.dz</span>
+            </a>
+            <div className="flex items-start gap-3 bg-brand-surface p-4 text-sm text-brand-text">
+              <MapPin size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><span><span className="block text-xs text-brand-text-muted">Adresse</span>Alger, Algérie</span>
+            </div>
+            <a href="https://instagram.com/lubristock" target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 bg-brand-surface p-4 text-sm text-brand-text hover:text-brand-orange">
+              <Camera size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><span><span className="block text-xs text-brand-text-muted">Instagram</span>@lubristock</span>
+            </a>
+          </address>
         </div>
       </section>
     </main>
