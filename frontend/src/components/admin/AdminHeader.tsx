@@ -25,7 +25,7 @@ export function AdminHeader() {
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/admin" className="text-sm font-semibold text-neutral-900">
-            AutoLube — Admin
+            LubriStock — Admin
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => {

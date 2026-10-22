@@ -72,7 +72,7 @@ export function ChatWidget() {
           <div className="border-b border-brand-border px-4 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-brand-text">
-                Assistant AutoLube
+                Assistant LubriStock
               </p>
               <p className="text-xs text-brand-text-muted">Posez votre question</p>
             </div>

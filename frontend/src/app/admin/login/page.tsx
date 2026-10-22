@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
       <div className="w-full max-w-sm bg-white border border-neutral-200 rounded-md p-8">
         <h1 className="text-xl font-semibold text-neutral-900 mb-1">
-          AutoLube — Administration
+          LubriStock — Administration
         </h1>
         <p className="text-sm text-neutral-500 mb-6">
           Connexion réservée à l&apos;administrateur.

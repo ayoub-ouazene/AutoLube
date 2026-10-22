@@ -10,6 +10,8 @@ export type CartItem = {
   quantity: number;
 };
 
+// Legacy storage key kept for backward compatibility with existing
+// users' localStorage. Do NOT rename without a data migration plan.
 export const CART_STORAGE_KEY = "autolube_cart_v1";
 export const MAX_QUANTITY_PER_ITEM = 50;
 

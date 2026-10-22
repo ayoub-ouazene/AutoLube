@@ -28,7 +28,11 @@ export type SessionRecord = {
   last_activity?: number;
 };
 
+// Legacy storage key kept for backward compatibility with existing
+// users' localStorage. Do NOT rename without a data migration plan.
 export const SESSION_STORAGE_KEY = "autolube_chat_session_v1";
+// Legacy storage key kept for backward compatibility with existing
+// users' localStorage. Do NOT rename without a data migration plan.
 export const MESSAGES_STORAGE_KEY = "autolube_chat_messages_v1";
 export const MAX_PERSISTED_MESSAGES = 50;
 
