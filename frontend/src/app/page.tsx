@@ -76,7 +76,7 @@ export default function HomePage() {
           <div className="relative hidden items-center justify-center md:flex">
             <div className="pointer-events-none absolute inset-[12%] rounded-full bg-white/80 blur-3xl" aria-hidden="true" />
             <div className="pointer-events-none absolute inset-[18%] rounded-[2.5rem] bg-[radial-gradient(circle,rgba(255,255,255,0.92)_0%,rgba(247,248,250,0.55)_42%,transparent_72%)]" aria-hidden="true" />
-            <img src="/LubriStock.png" alt="LubriStock" className="relative w-full max-w-lg h-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.35)]" />
+            <img src="/LubriStock.png" alt="LubriStock" className="relative w-full max-w-lg h-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.35)] animate-[hero-logo-pulse_5s_ease-in-out_infinite] motion-reduce:animate-none" />
           </div>
         </div>
       </section>

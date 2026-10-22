@@ -60,6 +60,16 @@ body {
   min-height: 100vh;
 }
 
+@keyframes hero-logo-pulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
 /* Dual-thumb price range slider */
 .price-slider input[type="range"] {
   height: 1rem;
