@@ -75,6 +75,6 @@ focus:outline-none focus:border-brand-dark`
 
 ## Brand
 
-- Logo: `public/LubriStock.jpg`
+- Logo: `public/LubriStock.png`
 - Instagram: @lubristock
 - Delivery: 58 wilayas (Algeria)

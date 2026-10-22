@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     template: "%s | LubriStock",
   },
   description: "Votre boutique d'huiles et lubrifiants automobiles en Algérie.",
+  icons: {
+    icon: "/LubriStock.png",
+  },
 };
 
 export default function RootLayout({

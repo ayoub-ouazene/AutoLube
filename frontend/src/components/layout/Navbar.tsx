@@ -28,7 +28,7 @@ export default function Navbar() {
               <span className="bg-white rounded p-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/LubriStock.jpg"
+                  src="/LubriStock.png"
                   alt="LubriStock"
                   className="h-8 sm:h-9 w-auto"
                 />

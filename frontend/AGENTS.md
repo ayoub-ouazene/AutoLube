@@ -89,7 +89,7 @@ See DESIGN_SYSTEM.md for the full reference. Summary:
 
 Brand name: **LubriStock** (exact spelling). Instagram: @lubristock.
 
-Logo: `public/LubriStock.jpg`. Navbar uses it with `alt='LubriStock'`.
+Logo: `public/LubriStock.png`. Navbar uses it with `alt='LubriStock'`.
 
 Never display the old name 'AutoLube' in customer-facing UI.
 
