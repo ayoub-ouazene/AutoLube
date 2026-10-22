@@ -13,7 +13,7 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`${
           isUser
-            ? "bg-brand-dark text-white self-end"
+            ? "bg-brand-orange text-white self-end"
             : "bg-brand-bg text-brand-text self-start"
         } rounded-lg px-3 py-2 max-w-[85%] text-sm`}
       >

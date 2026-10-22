@@ -18,7 +18,7 @@ const categories = [
 async function FeaturedProducts() {
   let items;
   try {
-    const data = await getProducts({ page: 1, page_size: 8, sort: "random" });
+    const data = await getProducts({ page: 1, page_size: 4, sort: "random" });
     items = data.items;
   } catch {
     return null;
@@ -52,7 +52,7 @@ export default function HomePage() {
     <main>
       <section className="relative overflow-hidden bg-brand-dark text-white" aria-labelledby="hero-title">
         <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0px,transparent_54px,rgba(255,255,255,0.025)_55px,rgba(255,255,255,0.025)_56px)]" aria-hidden="true" />
-        <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)] md:items-center md:gap-12 md:px-6 lg:py-20">
+        <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:items-center md:gap-4 md:px-6 lg:py-20">
           <div>
             <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/65">
               <span className="h-px w-7 bg-brand-orange" aria-hidden="true" />Lubrifiants automobiles · Algérie
@@ -67,10 +67,8 @@ export default function HomePage() {
               Explorer le catalogue <ArrowRight size={18} aria-hidden="true" />
             </Link>
           </div>
-          <div className="relative flex min-h-48 items-center justify-center border border-white/15 bg-brand-dark-light p-8 sm:min-h-64 md:min-h-72 lg:min-h-80">
-            <span className="absolute left-4 top-4 text-[10px] font-medium tracking-[0.2em] text-white/45">LUBRISTOCK / 01</span>
-            <img src="/LubriStock.png" alt="LubriStock" className="relative max-h-56 w-full max-w-sm object-contain drop-shadow-xl md:max-h-64" />
-            <span className="absolute bottom-4 right-4 h-1 w-12 bg-brand-orange" aria-hidden="true" />
+          <div className="hidden md:flex items-center justify-start">
+            <img src="/LubriStock.png" alt="LubriStock" className="w-full max-w-lg h-auto object-contain" />
           </div>
         </div>
       </section>

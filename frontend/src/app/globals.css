@@ -27,6 +27,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-brand-text-muted) var(--color-brand-bg);
+  }
 }
 
 /* Opt-in utility for hero + brand wordmarks. NOT applied to all headings. */
