@@ -55,8 +55,8 @@ export default function HomePage() {
           <div className="absolute -left-24 top-0 h-[28rem] w-[28rem] rounded-full bg-white/[0.045] blur-3xl" />
           <div className="absolute -right-16 bottom-[-8rem] h-[26rem] w-[26rem] rounded-full bg-brand-orange/[0.14] blur-3xl" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(255,255,255,0.08),transparent_28%),radial-gradient(circle_at_18%_80%,rgba(255,85,0,0.10),transparent_32%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black_18%,transparent_82%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.5%,rgba(255,255,255,0.09)_49.5%,rgba(255,255,255,0.09)_50.5%,transparent_50.5%),linear-gradient(transparent_49.5%,rgba(255,255,255,0.09)_49.5%,rgba(255,255,255,0.09)_50.5%,transparent_50.5%)] bg-[size:144px_144px] opacity-60" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.11)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.11)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black_12%,transparent_86%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.25%,rgba(255,255,255,0.14)_49.25%,rgba(255,255,255,0.14)_50.75%,transparent_50.75%),linear-gradient(transparent_49.25%,rgba(255,255,255,0.14)_49.25%,rgba(255,255,255,0.14)_50.75%,transparent_50.75%)] bg-[size:112px_112px] opacity-70" />
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </div>
         <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:items-center md:gap-4 md:px-6 lg:py-20">
@@ -98,30 +98,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:px-6" aria-labelledby="categories-title">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <section className="bg-brand-bg py-14 sm:py-20" aria-labelledby="categories-title">
+        <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-text-muted">Le catalogue</p>
+            <p className="mb-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-orange"><span className="h-px w-8 bg-brand-orange" aria-hidden="true" />Le catalogue</p>
             <h2 id="categories-title" className="text-2xl font-semibold tracking-tight text-brand-text sm:text-3xl">Choisissez votre catégorie</h2>
           </div>
           <p className="max-w-xs text-sm text-brand-text-muted">Accédez directement aux produits dont vous avez besoin.</p>
         </div>
-        <div className="grid grid-cols-1 gap-px overflow-hidden border border-brand-border bg-brand-border sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map(({ id, title, description, icon: Icon, number }) => (
-            <Link key={id} href={`/products?category=${id}`} className="group flex min-h-44 flex-col justify-between bg-brand-surface p-5 transition-colors hover:bg-brand-bg">
+            <Link key={id} href={`/products?category=${id}`} className="group relative flex min-h-28 flex-col justify-between overflow-hidden rounded-md border border-brand-dark-light bg-brand-dark p-4 transition-colors duration-200 hover:border-brand-orange">
+              <span className="absolute left-0 top-0 h-1 w-0 bg-brand-orange transition-all duration-200 group-hover:w-full" aria-hidden="true" />
               <div className="flex items-start justify-between">
-                <Icon size={24} strokeWidth={1.6} className="text-brand-text" aria-hidden="true" />
-                <span className="text-xs tabular-nums text-brand-text-muted">{number} / 04</span>
+                <Icon size={21} strokeWidth={1.7} className="text-brand-orange" aria-hidden="true" />
+                <span className="text-[11px] font-medium tabular-nums text-white/55">{number} / 04</span>
               </div>
-              <div className="mt-7">
+              <div className="mt-4">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-brand-text">{title}</h3>
-                  <ArrowRight size={17} className="shrink-0 text-brand-text-muted transition-colors group-hover:text-brand-orange" aria-hidden="true" />
+                  <h3 className="text-sm font-semibold text-white">{title}</h3>
+                  <ArrowRight size={16} className="shrink-0 text-white/60 transition-colors group-hover:text-brand-orange" aria-hidden="true" />
                 </div>
-                <p className="mt-1 text-xs text-brand-text-muted">{description}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/60">{description}</p>
               </div>
             </Link>
           ))}
+        </div>
         </div>
       </section>
 
