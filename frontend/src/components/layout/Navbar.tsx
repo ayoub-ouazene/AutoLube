@@ -12,15 +12,8 @@ export default function Navbar() {
 
   return (
     <header>
-      {/* Utility strip */}
-      <div className="bg-brand-orange text-white text-xs">
-        <div className="max-w-7xl mx-auto px-4 py-1.5 text-center">
-          Livraison dans les 58 wilayas · Paiement à la livraison
-        </div>
-      </div>
-
       {/* Main navigation bar */}
-      <div className="bg-brand-surface text-brand-text border-b border-brand-border">
+      <div className="bg-brand-surface text-brand-text border-y border-brand-orange/40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
             {/* Brand */}
