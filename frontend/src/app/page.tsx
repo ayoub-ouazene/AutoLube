@@ -55,7 +55,8 @@ export default function HomePage() {
           <div className="absolute -left-24 top-0 h-[28rem] w-[28rem] rounded-full bg-white/[0.045] blur-3xl" />
           <div className="absolute -right-16 bottom-[-8rem] h-[26rem] w-[26rem] rounded-full bg-brand-orange/[0.14] blur-3xl" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(255,255,255,0.08),transparent_28%),radial-gradient(circle_at_18%_80%,rgba(255,85,0,0.10),transparent_32%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_78%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black_18%,transparent_82%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.5%,rgba(255,255,255,0.09)_49.5%,rgba(255,255,255,0.09)_50.5%,transparent_50.5%),linear-gradient(transparent_49.5%,rgba(255,255,255,0.09)_49.5%,rgba(255,255,255,0.09)_50.5%,transparent_50.5%)] bg-[size:144px_144px] opacity-60" />
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </div>
         <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:items-center md:gap-4 md:px-6 lg:py-20">
@@ -74,8 +75,9 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="relative hidden items-center justify-center md:flex">
-            <div className="pointer-events-none absolute inset-[12%] rounded-full bg-white/80 blur-3xl" aria-hidden="true" />
-            <div className="pointer-events-none absolute inset-[18%] rounded-[2.5rem] bg-[radial-gradient(circle,rgba(255,255,255,0.92)_0%,rgba(247,248,250,0.55)_42%,transparent_72%)]" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-[25%] rounded-full bg-white/80 blur-3xl" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-[28%] rounded-[2.5rem] bg-[radial-gradient(circle,rgba(255,255,255,0.92)_0%,rgba(247,248,250,0.55)_42%,transparent_72%)]" aria-hidden="true" />
+            <div className="pointer-events-none absolute right-[4%] top-[20%] h-32 w-32 rounded-full bg-brand-orange/30 blur-3xl" aria-hidden="true" />
             <img src="/LubriStock.png" alt="LubriStock" className="relative w-full max-w-lg h-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.35)] animate-[hero-logo-pulse_5s_ease-in-out_infinite] motion-reduce:animate-none" />
           </div>
         </div>
