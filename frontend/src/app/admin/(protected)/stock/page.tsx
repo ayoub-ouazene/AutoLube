@@ -117,23 +117,23 @@ export default function StockListPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Stock</h1>
+        <h1 className="text-2xl font-semibold text-brand-text">Stock</h1>
         <Link
           href="/admin/stock/new"
-          className="bg-neutral-900 text-white text-sm font-medium px-4 py-2 rounded hover:bg-neutral-800"
+          className="bg-brand-orange text-white text-sm font-medium px-4 py-2 rounded hover:bg-brand-orange-hover"
         >
           + Nouveau produit
         </Link>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-md p-4 mb-4">
+      <div className="bg-brand-surface border border-brand-border rounded-md p-4 mb-4">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Rechercher par marque ou référence…"
-            className="flex-1 border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+            className="flex-1 border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
           />
 
           <select
@@ -141,7 +141,7 @@ export default function StockListPage() {
             onChange={(e) =>
               setUrl({ category: e.target.value || null, page: 1 })
             }
-            className="border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+            className="border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
           >
             <option value="">Toutes catégories</option>
             {STOCK_CATEGORIES.map((stockCategory) => (
@@ -158,7 +158,7 @@ export default function StockListPage() {
                 setSearchInput("");
                 setUrl({ category: null, q: null, page: 1 });
               }}
-              className="text-sm text-neutral-600 hover:text-neutral-900 underline"
+              className="text-sm text-brand-text-muted hover:text-brand-text underline"
             >
               Réinitialiser
             </button>
@@ -173,11 +173,11 @@ export default function StockListPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-neutral-500 py-8 text-center">
+        <p className="text-sm text-brand-text-muted py-8 text-center">
           Chargement…
         </p>
       ) : data && data.items.length === 0 ? (
-        <p className="text-sm text-neutral-500 py-8 text-center">
+        <p className="text-sm text-brand-text-muted py-8 text-center">
           Aucun produit trouvé.
         </p>
       ) : data ? (
@@ -185,7 +185,7 @@ export default function StockListPage() {
           <StockTable items={data.items} onDelete={handleDelete} />
 
           <div className="flex items-center justify-between mt-4">
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-brand-text-muted">
               {data.total} produit{data.total === 1 ? "" : "s"} au total
             </p>
             <div className="flex items-center gap-2">
@@ -193,18 +193,18 @@ export default function StockListPage() {
                 type="button"
                 onClick={() => setUrl({ page: Math.max(1, page - 1) })}
                 disabled={page <= 1}
-                className="text-sm border border-neutral-300 px-3 py-1.5 rounded disabled:opacity-40 hover:bg-neutral-100"
+                className="text-sm border border-brand-border px-3 py-1.5 rounded disabled:opacity-40 hover:bg-brand-bg"
               >
                 ← Précédent
               </button>
-              <span className="text-sm text-neutral-600">
+              <span className="text-sm text-brand-text-muted">
                 {page} / {pageCount}
               </span>
               <button
                 type="button"
                 onClick={() => setUrl({ page: page + 1 })}
                 disabled={!data.has_next}
-                className="text-sm border border-neutral-300 px-3 py-1.5 rounded disabled:opacity-40 hover:bg-neutral-100"
+                className="text-sm border border-brand-border px-3 py-1.5 rounded disabled:opacity-40 hover:bg-brand-bg"
               >
                 Suivant →
               </button>

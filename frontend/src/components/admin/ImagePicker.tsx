@@ -67,10 +67,10 @@ export function ImagePicker({
   };
 
   return (
-    <div className="border border-neutral-200 rounded-md p-3">
-      <h3 className="text-sm font-medium text-neutral-900 mb-2">{label}</h3>
+    <div className="border border-brand-border rounded-md p-3">
+      <h3 className="text-sm font-medium text-brand-text mb-2">{label}</h3>
       <div className="flex items-start gap-3">
-        <div className="w-32 h-32 aspect-square border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-32 h-32 aspect-square border border-brand-border rounded bg-brand-bg flex items-center justify-center overflow-hidden shrink-0">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -79,7 +79,7 @@ export function ImagePicker({
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-xs text-neutral-400">Aucune image</span>
+            <span className="text-xs text-brand-text-muted">Aucune image</span>
           )}
         </div>
         <div className="flex-1 min-w-0 space-y-2">
@@ -93,13 +93,13 @@ export function ImagePicker({
           />
           {file ? (
             <>
-              <p className="text-xs text-neutral-600 truncate">{file.name}</p>
+              <p className="text-xs text-brand-text-muted truncate">{file.name}</p>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
                   disabled={disabled}
-                  className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100 disabled:opacity-40"
+                  className="text-sm border border-brand-border px-3 py-1.5 rounded hover:bg-brand-bg disabled:opacity-40"
                 >
                   Changer
                 </button>
@@ -107,7 +107,7 @@ export function ImagePicker({
                   type="button"
                   onClick={handleClear}
                   disabled={disabled}
-                  className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100 disabled:opacity-40"
+                  className="text-sm border border-brand-border px-3 py-1.5 rounded hover:bg-brand-bg disabled:opacity-40"
                 >
                   Retirer
                 </button>
@@ -118,7 +118,7 @@ export function ImagePicker({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={disabled}
-              className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100 disabled:opacity-40"
+              className="text-sm border border-brand-border px-3 py-1.5 rounded hover:bg-brand-bg disabled:opacity-40"
             >
               Choisir une image
             </button>
@@ -128,7 +128,7 @@ export function ImagePicker({
               {error}
             </p>
           )}
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-brand-text-muted">
             JPG, PNG ou WEBP — max 5 MB. Optionnel.
           </p>
         </div>

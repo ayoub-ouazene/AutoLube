@@ -3,7 +3,7 @@ import { type OrderStatus, statusLabel } from "@/lib/adminOrders";
 const COLORS: Record<OrderStatus, string> = {
   pending: "bg-amber-50 text-amber-800 border-amber-200",
   confirmed: "bg-green-50 text-green-800 border-green-200",
-  cancelled: "bg-neutral-100 text-neutral-600 border-neutral-200",
+  cancelled: "bg-brand-bg text-brand-text-muted border-brand-border",
   delivered: "bg-blue-50 text-blue-800 border-blue-200",
 };
 

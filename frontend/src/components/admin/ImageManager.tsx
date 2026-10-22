@@ -141,10 +141,10 @@ function ImageSection({
   const isBusy = uploading || deleting;
 
   return (
-    <div className="border border-neutral-200 rounded-md p-3">
-      <h3 className="text-sm font-medium text-neutral-900 mb-2">{label}</h3>
+    <div className="border border-brand-border rounded-md p-3">
+      <h3 className="text-sm font-medium text-brand-text mb-2">{label}</h3>
       <div className="flex items-start gap-3">
-        <div className="w-32 h-32 aspect-square border border-neutral-200 rounded bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-24 h-24 aspect-square border border-brand-border rounded bg-brand-bg flex items-center justify-center overflow-hidden shrink-0">
           {displayUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -153,7 +153,7 @@ function ImageSection({
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-xs text-neutral-400">Aucune image</span>
+            <span className="text-xs text-brand-text-muted">Aucune image</span>
           )}
         </div>
         <div className="flex-1 min-w-0 space-y-2">
@@ -167,7 +167,7 @@ function ImageSection({
           />
           {previewUrl ? (
             <>
-              <p className="text-xs text-neutral-600">
+              <p className="text-xs text-brand-text-muted">
                 Aperçu local — cliquez sur Uploader pour enregistrer.
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -175,7 +175,7 @@ function ImageSection({
                   type="button"
                   onClick={handleUpload}
                   disabled={isBusy}
-                  className="text-sm bg-neutral-900 text-white px-3 py-1.5 rounded hover:bg-neutral-800 disabled:bg-neutral-400"
+                  className="text-sm bg-brand-orange text-white px-3 py-1.5 rounded hover:bg-brand-orange-hover disabled:bg-neutral-400"
                 >
                   {uploading ? "Envoi…" : "Uploader"}
                 </button>
@@ -183,7 +183,7 @@ function ImageSection({
                   type="button"
                   onClick={clearSelection}
                   disabled={isBusy}
-                  className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100 disabled:opacity-40"
+                  className="text-sm border border-brand-border px-3 py-1.5 rounded hover:bg-brand-bg disabled:opacity-40"
                 >
                   Annuler
                 </button>
@@ -195,7 +195,7 @@ function ImageSection({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={isBusy}
-                className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100 disabled:opacity-40"
+                className="text-sm border border-brand-border px-3 py-1.5 rounded hover:bg-brand-bg disabled:opacity-40"
               >
                 {hasExistingImage ? "Remplacer" : "Choisir une image"}
               </button>
@@ -216,7 +216,7 @@ function ImageSection({
               {error}
             </p>
           )}
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-brand-text-muted">
             JPG, PNG ou WEBP — max 5 MB.
           </p>
         </div>
@@ -233,12 +233,12 @@ export function ImageManager({
   onUpdated: (item: AdminStockItem) => void;
 }) {
   return (
-    <div className="bg-white border border-neutral-200 rounded-md p-6">
+    <div className="bg-brand-surface border border-brand-border rounded-md p-6">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-neutral-900">
+        <h2 className="text-lg font-semibold text-brand-text">
           Images du produit
         </h2>
-        <p className="text-xs text-neutral-500 mt-1">
+        <p className="text-xs text-brand-text-muted mt-1">
           Face avant affichée par défaut. Face arrière affichée au survol sur
           ordinateur.
         </p>

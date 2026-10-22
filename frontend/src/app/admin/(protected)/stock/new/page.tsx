@@ -59,7 +59,7 @@ export default function NewStockPage() {
 
   return (
     <div className="w-full max-w-none px-4 py-8 md:px-6 lg:px-8">
-      <h1 className="text-2xl font-semibold text-neutral-900 mb-6">
+      <h1 className="text-2xl font-semibold text-brand-text mb-6">
         Nouveau produit
       </h1>
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
@@ -71,12 +71,12 @@ export default function NewStockPage() {
           errorMessage={error}
         />
 
-        <div className="bg-white border border-neutral-200 rounded-md p-6 md:sticky md:top-6">
+        <div className="bg-brand-surface border border-brand-border rounded-md p-6 md:sticky md:top-6">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">
+            <h2 className="text-lg font-semibold text-brand-text">
               Images du produit (optionnel)
             </h2>
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="text-xs text-brand-text-muted mt-1">
               Vous pouvez ajouter les images maintenant, ou les téléverser
               plus tard depuis la page d&apos;édition.
             </p>

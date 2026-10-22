@@ -21,10 +21,10 @@ export function AdminHeader() {
   ];
 
   return (
-    <header className="bg-white border-b border-neutral-200">
+    <header className="bg-brand-dark border-b border-brand-dark-light">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/admin" className="text-sm font-semibold text-neutral-900">
+          <Link href="/admin" className="text-sm font-semibold text-white">
             LubriStock — Admin
           </Link>
           <nav className="flex items-center gap-1">
@@ -39,8 +39,8 @@ export function AdminHeader() {
                   href={item.href}
                   className={`text-sm px-3 py-1.5 rounded ${
                     active
-                      ? "bg-neutral-100 text-neutral-900 font-medium"
-                      : "text-neutral-600 hover:text-neutral-900"
+                      ? "bg-brand-dark-light text-white font-medium"
+                      : "text-white/70 hover:text-white"
                   }`}
                 >
                   {item.label}
@@ -52,12 +52,12 @@ export function AdminHeader() {
 
         <div className="flex items-center gap-3">
           {user && (
-            <span className="text-xs text-neutral-500">{user.username}</span>
+            <span className="text-xs text-white/60">{user.username}</span>
           )}
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm border border-neutral-300 px-3 py-1.5 rounded hover:bg-neutral-100"
+            className="text-sm border border-white/30 text-white px-3 py-1.5 rounded hover:bg-white/10"
           >
             Déconnexion
           </button>

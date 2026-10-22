@@ -131,7 +131,7 @@ export default function EditStockPage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <p className="text-sm text-neutral-500">Chargement…</p>
+        <p className="text-sm text-brand-text-muted">Chargement…</p>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function EditStockPage() {
         <button
           type="button"
           onClick={() => router.replace("/admin/stock")}
-          className="mt-4 text-sm underline text-neutral-700"
+          className="mt-4 text-sm underline text-brand-text-muted hover:text-brand-text"
         >
           Retour au stock
         </button>
@@ -156,7 +156,7 @@ export default function EditStockPage() {
   return (
     <div className="w-full max-w-none px-4 py-8 md:px-6 lg:px-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">
+        <h1 className="text-2xl font-semibold text-brand-text">
           Modifier le produit
         </h1>
         <button

@@ -44,18 +44,18 @@ export default function AdminLoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-sm text-neutral-500">Chargement…</p>
+        <p className="text-sm text-brand-text-muted">Chargement…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
-      <div className="w-full max-w-sm bg-white border border-neutral-200 rounded-md p-8">
-        <h1 className="text-xl font-semibold text-neutral-900 mb-1">
+    <div className="min-h-screen flex items-center justify-center bg-brand-dark px-4">
+      <div className="w-full max-w-sm bg-brand-surface border border-brand-border rounded-md p-8">
+        <h1 className="text-xl font-semibold text-brand-text mb-1">
           LubriStock — Administration
         </h1>
-        <p className="text-sm text-neutral-500 mb-6">
+        <p className="text-sm text-brand-text-muted mb-6">
           Connexion réservée à l&apos;administrateur.
         </p>
 
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
           <div>
             <label
               htmlFor="username"
-              className="block text-sm font-medium text-neutral-700 mb-1"
+              className="block text-sm font-medium text-brand-text mb-1"
             >
               Nom d&apos;utilisateur
             </label>
@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={submitting}
-              className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 disabled:bg-neutral-100"
+              className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark disabled:bg-brand-bg"
               required
             />
           </div>
@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-neutral-700 mb-1"
+              className="block text-sm font-medium text-brand-text mb-1"
             >
               Mot de passe
             </label>
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={submitting}
-                className="w-full border border-neutral-300 rounded px-3 py-2 pr-10 text-sm focus:outline-none focus:border-neutral-900 disabled:bg-neutral-100"
+                className="w-full border border-brand-border rounded px-3 py-2 pr-10 text-sm focus:outline-none focus:border-brand-dark disabled:bg-brand-bg"
                 required
               />
               <button
@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
                     : "Afficher le mot de passe"
                 }
                 aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-brand-text-muted hover:text-brand-text disabled:opacity-50"
               >
                 {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
@@ -123,7 +123,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-neutral-900 text-white text-sm font-medium py-2.5 rounded hover:bg-neutral-800 disabled:bg-neutral-400"
+            className="w-full bg-brand-orange text-white text-sm font-medium py-2.5 rounded hover:bg-brand-orange-hover disabled:bg-neutral-400"
           >
             {submitting ? "Connexion…" : "Se connecter"}
           </button>

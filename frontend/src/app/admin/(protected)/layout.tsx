@@ -23,7 +23,7 @@ export default function ProtectedAdminLayout({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-sm text-neutral-500">Vérification…</p>
+        <p className="text-sm text-brand-text-muted">Vérification…</p>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export default function ProtectedAdminLayout({
 
   return (
     <ConfirmProvider>
-      <div className="min-h-screen bg-neutral-50">
+      <div className="min-h-screen bg-brand-bg">
         <AdminHeader />
         <main>{children}</main>
       </div>

@@ -79,18 +79,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           onClick={() => close(false)}
         >
           <div
-            className="bg-white rounded-md shadow-xl max-w-md w-full p-6"
+            className="bg-brand-surface rounded-md shadow-xl max-w-md w-full p-6"
             onClick={(event) => event.stopPropagation()}
           >
             {pending.options.title && (
               <h2
                 id="confirm-title"
-                className="text-lg font-semibold text-neutral-900 mb-2"
+                className="text-lg font-semibold text-brand-text mb-2"
               >
                 {pending.options.title}
               </h2>
             )}
-            <p className="text-sm text-neutral-700 mb-6">
+            <p className="text-sm text-brand-text mb-6">
               {pending.message}
             </p>
             <div className="flex items-center justify-end gap-2">
@@ -98,7 +98,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => close(false)}
                 autoFocus
-                className="text-sm border border-neutral-300 px-4 py-2 rounded hover:bg-neutral-100"
+                className="text-sm border border-brand-border px-4 py-2 rounded hover:bg-brand-bg"
               >
                 {pending.options.cancelLabel ?? "Annuler"}
               </button>
@@ -109,7 +109,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   "text-sm font-medium px-4 py-2 rounded " +
                   (pending.options.danger
                     ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-neutral-900 text-white hover:bg-neutral-800")
+                    : "bg-brand-orange text-white hover:bg-brand-orange-hover")
                 }
               >
                 {pending.options.confirmLabel ?? "Confirmer"}

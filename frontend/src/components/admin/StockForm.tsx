@@ -130,17 +130,17 @@ export function StockForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white border border-neutral-200 rounded-md p-6 space-y-4"
+      className="bg-brand-surface border border-brand-border rounded-md p-6 space-y-4"
     >
       <div>
-        <label className="block text-sm font-medium text-neutral-700 mb-1">
+        <label className="block text-sm font-medium text-brand-text mb-1">
           Catégorie *
         </label>
         <select
           value={values.category}
           onChange={(e) => set("category", e.target.value as StockCategory)}
           disabled={mode === "edit"}
-          className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 disabled:bg-neutral-100"
+          className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark disabled:bg-brand-bg"
         >
           {STOCK_CATEGORIES.map((category) => (
             <option key={category.value} value={category.value}>
@@ -149,7 +149,7 @@ export function StockForm({
           ))}
         </select>
         {mode === "edit" && (
-          <p className="text-xs text-neutral-500 mt-1">
+          <p className="text-xs text-brand-text-muted mt-1">
             La catégorie ne peut pas être modifiée.
           </p>
         )}
@@ -157,7 +157,7 @@ export function StockForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
+          <label className="block text-sm font-medium text-brand-text mb-1">
             Marque *
           </label>
           <input
@@ -165,12 +165,12 @@ export function StockForm({
             value={values.brand}
             onChange={(e) => set("brand", e.target.value)}
             maxLength={64}
-            className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+            className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
+          <label className="block text-sm font-medium text-brand-text mb-1">
             Spécification *
           </label>
           <input
@@ -179,14 +179,14 @@ export function StockForm({
             onChange={(e) => set("specification", e.target.value)}
             maxLength={500}
             placeholder="ex: VW 504.00, PSA B71 2290"
-            className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+            className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
           />
         </div>
 
         {showsOilFields && (
           <>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
+              <label className="block text-sm font-medium text-brand-text mb-1">
                 Viscosité *
               </label>
               <input
@@ -195,11 +195,11 @@ export function StockForm({
                 onChange={(e) => set("viscosity", e.target.value)}
                 maxLength={16}
                 placeholder="ex: 5W-30"
-                className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+                className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
+              <label className="block text-sm font-medium text-brand-text mb-1">
                 Taille *
               </label>
               <input
@@ -208,7 +208,7 @@ export function StockForm({
                 onChange={(e) => set("size", e.target.value)}
                 maxLength={16}
                 placeholder="ex: 5L"
-                className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+                className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
               />
             </div>
           </>
@@ -216,7 +216,7 @@ export function StockForm({
 
         {isAdditional && (
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
+            <label className="block text-sm font-medium text-brand-text mb-1">
               Type de produit *
             </label>
             <input
@@ -225,13 +225,13 @@ export function StockForm({
               onChange={(e) => set("category_type", e.target.value)}
               maxLength={64}
               placeholder="ex: liquide de frein, additif"
-              className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+              className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
             />
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
+          <label className="block text-sm font-medium text-brand-text mb-1">
             Prix (DA) *
           </label>
           <input
@@ -240,15 +240,15 @@ export function StockForm({
             min="0"
             value={values.price}
             onChange={(e) => set("price", e.target.value)}
-            className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+            className="w-full border border-brand-border rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-dark"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
+          <label className="block text-sm font-medium text-brand-text mb-1">
             Quantité *
           </label>
-          <div className="flex items-stretch rounded border border-neutral-300 focus-within:border-neutral-900">
+          <div className="flex items-stretch rounded border border-brand-border focus-within:border-brand-dark">
             <button
               type="button"
               onClick={() =>
@@ -259,7 +259,7 @@ export function StockForm({
               }
               disabled={submitting || (parseInt(values.quantity, 10) || 0) <= 0}
               aria-label="Diminuer la quantité"
-              className="w-10 border-r border-neutral-300 text-lg text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-10 border-r border-brand-border text-lg text-brand-text hover:bg-brand-bg disabled:cursor-not-allowed disabled:opacity-40"
             >
               −
             </button>
@@ -278,7 +278,7 @@ export function StockForm({
               }
               disabled={submitting}
               aria-label="Augmenter la quantité"
-              className="w-10 border-l border-neutral-300 text-lg text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-10 border-l border-brand-border text-lg text-brand-text hover:bg-brand-bg disabled:cursor-not-allowed disabled:opacity-40"
             >
               +
             </button>
@@ -296,7 +296,7 @@ export function StockForm({
         <button
           type="submit"
           disabled={submitting}
-          className="bg-neutral-900 text-white text-sm font-medium px-4 py-2 rounded hover:bg-neutral-800 disabled:bg-neutral-400"
+          className="bg-brand-orange text-white text-sm font-medium px-4 py-2 rounded hover:bg-brand-orange-hover disabled:bg-neutral-400"
         >
           {submitting
             ? "Enregistrement…"
@@ -308,7 +308,7 @@ export function StockForm({
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="text-sm text-neutral-700 px-4 py-2 rounded hover:bg-neutral-100 disabled:opacity-40"
+          className="text-sm text-brand-text-muted px-4 py-2 rounded hover:bg-brand-bg disabled:opacity-40"
         >
           Annuler
         </button>

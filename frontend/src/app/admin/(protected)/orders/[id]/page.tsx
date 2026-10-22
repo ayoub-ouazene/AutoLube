@@ -108,7 +108,7 @@ export default function OrderDetailPage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <p className="text-sm text-neutral-500">Chargement…</p>
+        <p className="text-sm text-brand-text-muted">Chargement…</p>
       </div>
     );
   }
@@ -121,7 +121,7 @@ export default function OrderDetailPage() {
         </p>
         <Link
           href="/admin/orders"
-          className="mt-4 inline-block text-sm underline text-neutral-700"
+          className="mt-4 inline-block text-sm underline text-brand-text-muted hover:text-brand-text"
         >
           ← Retour aux commandes
         </Link>
@@ -136,17 +136,17 @@ export default function OrderDetailPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <Link
         href="/admin/orders"
-        className="text-sm text-neutral-600 hover:text-neutral-900 underline mb-4 inline-block"
+        className="text-sm text-brand-text-muted hover:text-brand-text underline mb-4 inline-block"
       >
         ← Retour aux commandes
       </Link>
 
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">
+          <h1 className="text-2xl font-semibold text-brand-text">
             Commande #{order.id}
           </h1>
-          <p className="text-sm text-neutral-500 mt-1">
+          <p className="text-sm text-brand-text-muted mt-1">
             {formatDate(order.created_at)}
           </p>
         </div>
@@ -160,13 +160,13 @@ export default function OrderDetailPage() {
       )}
 
       {canConfirm || canCancel ? (
-        <div className="bg-white border border-neutral-200 rounded-md p-4 mb-6 flex items-center gap-3">
+        <div className="bg-brand-surface border border-brand-border rounded-md p-4 mb-6 flex items-center gap-3">
           {canConfirm && (
             <button
               type="button"
               onClick={handleConfirm}
               disabled={acting}
-              className="bg-neutral-900 text-white text-sm font-medium px-4 py-2 rounded hover:bg-neutral-800 disabled:bg-neutral-400"
+              className="bg-brand-orange text-white text-sm font-medium px-4 py-2 rounded hover:bg-brand-orange-hover disabled:bg-neutral-400"
             >
               {acting ? "Traitement…" : "Confirmer la commande"}
             </button>
@@ -183,7 +183,7 @@ export default function OrderDetailPage() {
           )}
         </div>
       ) : (
-        <div className="bg-neutral-50 border border-neutral-200 rounded-md p-3 mb-6 text-sm text-neutral-600">
+        <div className="bg-brand-bg border border-brand-border rounded-md p-3 mb-6 text-sm text-brand-text-muted">
           {order.status === "confirmed" &&
             "Cette commande est confirmée. Elle ne peut plus être annulée."}
           {order.status === "cancelled" && "Cette commande est annulée."}
@@ -193,21 +193,21 @@ export default function OrderDetailPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="md:col-span-2 bg-white border border-neutral-200 rounded-md p-4">
-          <h2 className="text-sm font-medium text-neutral-900 mb-3">Client</h2>
+        <div className="md:col-span-2 bg-brand-surface border border-brand-border rounded-md p-4">
+          <h2 className="text-sm font-medium text-brand-text mb-3">Client</h2>
           <dl className="grid grid-cols-1 gap-2 text-sm">
             <div className="flex gap-2">
-              <dt className="text-neutral-500 w-28 shrink-0">Nom</dt>
-              <dd className="text-neutral-900">{order.customer_name}</dd>
+              <dt className="text-brand-text-muted w-28 shrink-0">Nom</dt>
+              <dd className="text-brand-text">{order.customer_name}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="text-neutral-500 w-28 shrink-0">Téléphone</dt>
+              <dt className="text-brand-text-muted w-28 shrink-0">Téléphone</dt>
               <dd>
                 <a
                   href={whatsappUrl(order.customer_phone)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-neutral-900 underline hover:text-green-700"
+                  className="text-brand-text underline hover:text-green-700"
                 >
                   {order.customer_phone}
                 </a>
@@ -215,11 +215,11 @@ export default function OrderDetailPage() {
             </div>
             {order.customer_email && (
               <div className="flex gap-2">
-                <dt className="text-neutral-500 w-28 shrink-0">Email</dt>
+                <dt className="text-brand-text-muted w-28 shrink-0">Email</dt>
                 <dd>
                   <a
                     href={`mailto:${order.customer_email}`}
-                    className="text-neutral-900 underline"
+                    className="text-brand-text underline"
                   >
                     {order.customer_email}
                   </a>
@@ -227,15 +227,15 @@ export default function OrderDetailPage() {
               </div>
             )}
             <div className="flex gap-2">
-              <dt className="text-neutral-500 w-28 shrink-0">Localisation</dt>
-              <dd className="text-neutral-900">
+              <dt className="text-brand-text-muted w-28 shrink-0">Localisation</dt>
+              <dd className="text-brand-text">
                 {order.wilaya} · {order.city}
               </dd>
             </div>
             {order.notes && (
               <div className="flex gap-2">
-                <dt className="text-neutral-500 w-28 shrink-0">Notes</dt>
-                <dd className="text-neutral-900 whitespace-pre-wrap">
+                <dt className="text-brand-text-muted w-28 shrink-0">Notes</dt>
+                <dd className="text-brand-text whitespace-pre-wrap">
                   {order.notes}
                 </dd>
               </div>
@@ -243,20 +243,20 @@ export default function OrderDetailPage() {
           </dl>
         </div>
 
-        <div className="bg-white border border-neutral-200 rounded-md p-4">
-          <h2 className="text-sm font-medium text-neutral-900 mb-3">Total</h2>
-          <p className="text-2xl font-semibold text-neutral-900">
+        <div className="bg-brand-surface border border-brand-border rounded-md p-4">
+          <h2 className="text-sm font-medium text-brand-text mb-3">Total</h2>
+          <p className="text-2xl font-semibold text-brand-text">
             {formatPrice(order.total)}
           </p>
-          <p className="text-xs text-neutral-500 mt-1">
+          <p className="text-xs text-brand-text-muted mt-1">
             {order.items.reduce((sum, item) => sum + item.quantity, 0)} article(s)
           </p>
         </div>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-md overflow-x-auto">
+      <div className="bg-brand-surface border border-brand-border rounded-md overflow-x-auto">
         <table className="w-full min-w-[700px] text-sm">
-          <thead className="bg-neutral-50 text-neutral-600 text-xs uppercase">
+          <thead className="bg-brand-bg text-brand-text-muted text-xs uppercase">
             <tr>
               <th className="px-3 py-2 text-left">Article</th>
               <th className="px-3 py-2 text-left">Spécification</th>
@@ -268,17 +268,17 @@ export default function OrderDetailPage() {
           </thead>
           <tbody>
             {order.items.map((item) => (
-              <tr key={item.id} className="border-t border-neutral-100">
+              <tr key={item.id} className="border-t border-brand-border">
                 <td className="px-3 py-2">
-                  <div className="font-medium text-neutral-900">
+                  <div className="font-medium text-brand-text">
                     {item.brand}
                   </div>
-                  <div className="text-xs text-neutral-500">{item.name}</div>
+                  <div className="text-xs text-brand-text-muted">{item.name}</div>
                 </td>
-                <td className="px-3 py-2 text-neutral-600">
+                <td className="px-3 py-2 text-brand-text-muted">
                   {item.specification}
                 </td>
-                <td className="px-3 py-2 text-neutral-600">
+                <td className="px-3 py-2 text-brand-text-muted">
                   {item.size ?? "—"}
                 </td>
                 <td className="px-3 py-2 text-right">
@@ -291,15 +291,15 @@ export default function OrderDetailPage() {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-neutral-50 border-t border-neutral-200">
+          <tfoot className="bg-brand-bg border-t border-brand-border">
             <tr>
               <td
                 colSpan={5}
-                className="px-3 py-2 text-right text-sm font-medium text-neutral-700"
+                className="px-3 py-2 text-right text-sm font-medium text-brand-text"
               >
                 Total
               </td>
-              <td className="px-3 py-2 text-right font-semibold text-neutral-900">
+              <td className="px-3 py-2 text-right font-semibold text-brand-text">
                 {formatPrice(order.total)}
               </td>
             </tr>
@@ -307,7 +307,7 @@ export default function OrderDetailPage() {
         </table>
       </div>
 
-      <p className="text-xs text-neutral-500 mt-4">
+      <p className="text-xs text-brand-text-muted mt-4">
         Statut actuel : {statusLabel(order.status)}.
       </p>
     </div>
