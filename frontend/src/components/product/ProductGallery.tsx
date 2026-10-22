@@ -50,7 +50,7 @@ export function ProductGallery({ product, compact = false, modalLayout = false }
 
       {/* Thumbnails */}
       {available.length > 1 && (
-        <div className="flex flex-wrap md:flex-nowrap gap-1 md:gap-2 max-md:self-start">
+        <div className="flex flex-wrap md:flex-nowrap gap-1 md:gap-2 max-md:col-start-2 max-md:row-start-2 max-md:self-start">
           {available.map((img, i) => (
             <button
               key={i}

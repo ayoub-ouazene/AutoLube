@@ -55,19 +55,19 @@ export function ProductModal({
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg z-10"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-bg cursor-pointer z-10"
         >
           <X size={18} strokeWidth={2} />
         </button>
 
-        <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] md:grid-cols-2 gap-x-3 gap-y-3 md:gap-6 p-3 md:p-5">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] md:grid-cols-2 gap-x-3 gap-y-3 md:gap-6 p-3 md:p-5">
           {/* LEFT: gallery */}
           <div className="contents md:block md:min-w-0">
             <ProductGallery product={product} compact modalLayout />
           </div>
 
           {/* RIGHT: info */}
-          <div className={`flex min-w-0 flex-col md:h-full ${hasTwoImages ? "" : "max-md:col-span-2"}`}>
+          <div className={`flex min-w-0 flex-col md:h-full ${hasTwoImages ? "max-md:col-start-1 max-md:row-start-2" : "max-md:col-span-2"}`}>
             <p className="text-xs uppercase tracking-wide text-brand-text-muted">
               {product.brand}
             </p>
