@@ -63,7 +63,7 @@ export default function HomePage() {
             <p className="mt-6 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
               Huiles moteur, huiles de boîte et filtres pour votre véhicule. Retrouvez Castrol, Total, Elf, Motul, Febi et d’autres références dans un catalogue pensé pour choisir sans perdre de temps.
             </p>
-            <Link href="/products" className="mt-8 inline-flex items-center justify-center gap-3 rounded bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-orange-hover">
+            <Link href="/products" className="mt-8 inline-flex w-fit items-center justify-center gap-2 rounded bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-orange-hover md:gap-3 md:px-6 md:py-3">
               Explorer le catalogue <ArrowRight size={18} aria-hidden="true" />
             </Link>
           </div>

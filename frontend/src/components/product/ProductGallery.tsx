@@ -6,9 +6,10 @@ import type { Product } from "@/lib/types";
 interface Props {
   product: Product;
   compact?: boolean;
+  modalLayout?: boolean;
 }
 
-export function ProductGallery({ product, compact = false }: Props) {
+export function ProductGallery({ product, compact = false, modalLayout = false }: Props) {
   const { image_front_url, image_back_url, name } = product;
 
   const images: Array<{ url: string | null; label: string }> = [
@@ -24,8 +25,8 @@ export function ProductGallery({ product, compact = false }: Props) {
     return (
       <div
         className={`relative w-full bg-brand-bg flex items-center justify-center ${
-          compact ? "aspect-[4/3]" : "aspect-square"
-        }`}
+          compact ? "aspect-[4/3] max-md:max-h-28" : "aspect-square"
+        } ${modalLayout ? "max-md:col-span-2" : ""}`}
       >
         <span className="text-brand-text-muted text-sm">Image non disponible</span>
       </div>
@@ -33,12 +34,12 @@ export function ProductGallery({ product, compact = false }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={modalLayout ? "contents md:flex md:flex-col md:gap-3" : "flex flex-col gap-3"}>
       {/* Main image */}
       <div
         className={`relative w-full bg-brand-bg overflow-hidden ${
-          compact ? "aspect-[4/3]" : "aspect-square"
-        }`}
+          compact ? "aspect-[4/3] max-md:max-h-44" : "aspect-square"
+        } ${modalLayout ? "max-md:col-span-2" : ""}`}
       >
         <img
           src={available[selected].url!}
@@ -49,13 +50,13 @@ export function ProductGallery({ product, compact = false }: Props) {
 
       {/* Thumbnails */}
       {available.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap md:flex-nowrap gap-1 md:gap-2 max-md:self-start">
           {available.map((img, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setSelected(i)}
-              className={`relative w-16 h-16 border-2 overflow-hidden ${
+              className={`relative w-12 h-12 md:w-16 md:h-16 border-2 overflow-hidden ${
                 i === selected ? "border-brand-orange" : "border-brand-border"
               }`}
             >
@@ -71,7 +72,7 @@ export function ProductGallery({ product, compact = false }: Props) {
 
       {/* Labels */}
       {available.length > 1 && (
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           {available.map((img, i) => (
             <span
               key={i}
